@@ -6,6 +6,7 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/MongoDB"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/FastJSON"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/Fastjson"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/Redis"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

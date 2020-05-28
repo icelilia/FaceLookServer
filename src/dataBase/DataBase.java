@@ -25,8 +25,12 @@ import dataBase.model.Session;
 import dataBase.model.User;
 
 public class DataBase {
+	@SuppressWarnings("unused")
+	private static final String MONGODB_SERVER_HOST = "mongodb://Andersen:213533@127.0.0.1:27017/?authSource=admin&readPreference=primary&appname=MongoDB%20Compass&ssl=false";
+	@SuppressWarnings("unused")
+	private static final String MONGODB_SERVER_LOCALHOST = "mongodb://127.0.0.1:27017";
 	// mongodb对象的引用
-	private final static MongoClient mongoClient = new MongoClient(new MongoClientURI("mongodb://127.0.0.1:27017"));
+	private final static MongoClient mongoClient = new MongoClient(new MongoClientURI(MONGODB_SERVER_LOCALHOST));
 	// FaceLook数据库的引用
 	private final static MongoDatabase faceLook = MongoDBAPI.getOrCreateDatabase(mongoClient, "FaceLook");
 	// 以下是各个表的引用
@@ -51,7 +55,7 @@ public class DataBase {
 
 	private DataBase() {
 		// 获取当前最大的sessionId
-		
+
 	}
 
 	// 获得单例对象的引用
@@ -171,7 +175,7 @@ public class DataBase {
 			// 更新用户下面的会话列表
 			User user = JSON.parseObject(userResult.toJson(), User.class);
 			// 这里remove时要注意，Integer没有重写Object的equals方法
-			Vector<Integer> sessionIds = user.getSessionIds();
+			Vector<Integer> sessionIds = user.getSessions();
 			Iterator<Integer> iter = sessionIds.iterator();
 			while (iter.hasNext()) {
 				Integer id = iter.next();
@@ -193,7 +197,7 @@ public class DataBase {
 		Document result = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, document);
 		if (isValidDocument(result)) {
 			User user = JSON.parseObject(result.toJson(), User.class);
-			return user.getSessionIds();
+			return user.getSessions();
 		}
 		return null;
 	}

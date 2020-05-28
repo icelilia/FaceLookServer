@@ -6,8 +6,10 @@ public class User {
 	private String username;
 	private String password;
 	private String nickname;
-	private Vector<String> friends = new Vector<String>(4);
-	private Vector<Integer> sessionIds = new Vector<Integer>(4);
+	private Vector<String> friends = new Vector<String>(16);
+	private Vector<Integer> sessions = new Vector<Integer>(16);
+	// 待处理好友请求，储存的是字符串
+	private Vector<String> requests = new Vector<String>();
 
 	public User() {
 	}
@@ -54,15 +56,23 @@ public class User {
 		this.friends.add(friendUsername);
 	}
 
-	public Vector<Integer> getSessionIds() {
-		return sessionIds;
+	public Vector<Integer> getSessions() {
+		return sessions;
 	}
 
-	public void setSessionIds(Vector<Integer> sessionIds) {
-		this.sessionIds = sessionIds;
+	public void setSessions(Vector<Integer> sessions) {
+		this.sessions = sessions;
 	}
 
 	public void addSession(int sessionId) {
-		this.sessionIds.add(sessionId);
+		this.sessions.add(sessionId);
+	}
+
+	public Vector<String> getRequests() {
+		return requests;
+	}
+
+	public void setRequests(Vector<String> requests) {
+		this.requests = requests;
 	}
 }

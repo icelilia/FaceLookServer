@@ -37,14 +37,18 @@ public class LinkThread extends Thread {
 				// 连接初始化
 				Message message;
 				String messageString;
+				byte[] messageByteArray;
 				message = new Message();
 				message.setMessageNumber("1");
-				dataOutputStream.writeUTF(JSON.toJSONString(message));
+				messageString = JSON.toJSONString(message);
+				messageByteArray = messageString.getBytes("utf-8");
+				dataOutputStream.write(messageByteArray);
 
 				// 循环接收登录请求或者注册请求
 				while (true) {
-					messageString = dataInputStream.readUTF();
-					message = JSON.parseObject(messageString, Message.class);
+					messageByteArray = new byte[65535];
+					dataInputStream.read(messageByteArray);
+					message = JSON.parseObject(new String(messageByteArray, "utf-8"), Message.class);
 					int messageNumber = Integer.parseInt(message.getMessageNumber());
 					// 登录请求
 					if (messageNumber == 2) {
@@ -52,25 +56,22 @@ public class LinkThread extends Thread {
 						username = message.getMessageFiled1();
 						// 2号请求
 						if (message.message2(dataBase, dataOutputStream)) {
-							// 服务器日志显示
 							System.out.println("用户" + "[" + username + "]" + "已登录");
 							// 添加socket关联
 							dataBase.addSocket(username, socket);
 							// 跳出循环
 							break;
 						} else {
-							// 服务器日志显示
 							System.out.println("用户" + "[" + username + "]" + "登录出错");
 						}
 					}
 					// 注册请求
 					else if (messageNumber == 3) {
 						// 3号请求
+						username = message.getMessageFiled1();
 						if (message.message3(dataBase, dataOutputStream)) {
-							// 服务器日志显示
 							System.out.println("用户" + "[" + username + "]" + "已注册");
 						} else {
-							// 服务器日志显示
 							System.out.println("用户" + "[" + username + "]" + "注册出错");
 						}
 					}
@@ -79,8 +80,9 @@ public class LinkThread extends Thread {
 
 				// 接下来就是循环读取请求了
 				while (true) {
-					messageString = dataInputStream.readUTF();
-					message = JSON.parseObject(messageString, Message.class);
+					messageByteArray = new byte[65535];
+					dataInputStream.read();
+					message = JSON.parseObject(new String(messageByteArray, "utf-8"), Message.class);
 					int messageNumber = Integer.parseInt(message.getMessageNumber());
 					switch (messageNumber) {
 					// 获取好友列表
