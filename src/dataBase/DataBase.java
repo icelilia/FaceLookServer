@@ -25,12 +25,11 @@ import dataBase.model.Session;
 import dataBase.model.User;
 
 public class DataBase {
-	@SuppressWarnings("unused")
 	private static final String MONGODB_SERVER_HOST = "mongodb://Andersen:213533@127.0.0.1:27017/?authSource=admin&readPreference=primary&appname=MongoDB%20Compass&ssl=false";
 	@SuppressWarnings("unused")
 	private static final String MONGODB_SERVER_LOCALHOST = "mongodb://127.0.0.1:27017";
 	// mongodb对象的引用
-	private final static MongoClient mongoClient = new MongoClient(new MongoClientURI(MONGODB_SERVER_LOCALHOST));
+	private final static MongoClient mongoClient = new MongoClient(new MongoClientURI(MONGODB_SERVER_HOST));
 	// FaceLook数据库的引用
 	private final static MongoDatabase faceLook = MongoDBAPI.getOrCreateDatabase(mongoClient, "FaceLook");
 	// 以下是各个表的引用
@@ -203,7 +202,7 @@ public class DataBase {
 	}
 
 	// 获得对话的用户列表
-	public Vector<String> getMembers(int sessionId) {
+	public Vector<String> getUsers(int sessionId) {
 		Document document = new Document("sessionId", sessionId);
 		Document result = MongoDBAPI.findOneDocument(faceLook, SESSION_COLLECTION_NAME, document);
 		if (isValidDocument(result)) {

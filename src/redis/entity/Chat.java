@@ -3,7 +3,7 @@ package redis.entity;
 import java.io.Serializable;
 
 public class Chat implements Serializable {
-    /**
+	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 8459789330635891615L;

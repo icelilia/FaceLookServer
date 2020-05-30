@@ -3,7 +3,6 @@ package main;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import com.alibaba.fastjson.JSON;
 import dataBase.DataBase;
 import main.Message;
 
@@ -34,27 +33,20 @@ public class LinkThread extends Thread {
 				OutputStream outputStream = socket.getOutputStream();
 				DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
 
-				// 连接初始化
 				Message message;
-				String messageString;
-				byte[] messageByteArray;
+
+				// 连接初始化
 				message = new Message();
-				message.setMessageNumber("1");
-				messageString = JSON.toJSONString(message);
-				messageByteArray = messageString.getBytes("utf-8");
-				dataOutputStream.write(messageByteArray);
+				message.message1(dataBase, dataOutputStream);
 
 				// 循环接收登录请求或者注册请求
 				while (true) {
-					messageByteArray = new byte[65535];
-					dataInputStream.read(messageByteArray);
-					message = JSON.parseObject(new String(messageByteArray, "utf-8"), Message.class);
+					message = Message.receiveMessage(dataBase, dataInputStream);
 					int messageNumber = Integer.parseInt(message.getMessageNumber());
-					// 登录请求
+					// 2号请求
 					if (messageNumber == 2) {
 						// 需要记录一下用户名
-						username = message.getMessageFiled1();
-						// 2号请求
+						username = message.getMessageField1();
 						if (message.message2(dataBase, dataOutputStream)) {
 							System.out.println("用户" + "[" + username + "]" + "已登录");
 							// 添加socket关联
@@ -65,10 +57,9 @@ public class LinkThread extends Thread {
 							System.out.println("用户" + "[" + username + "]" + "登录出错");
 						}
 					}
-					// 注册请求
+					// 3号请求
 					else if (messageNumber == 3) {
-						// 3号请求
-						username = message.getMessageFiled1();
+						username = message.getMessageField1();
 						if (message.message3(dataBase, dataOutputStream)) {
 							System.out.println("用户" + "[" + username + "]" + "已注册");
 						} else {
@@ -80,9 +71,7 @@ public class LinkThread extends Thread {
 
 				// 接下来就是循环读取请求了
 				while (true) {
-					messageByteArray = new byte[65535];
-					dataInputStream.read();
-					message = JSON.parseObject(new String(messageByteArray, "utf-8"), Message.class);
+					message = Message.receiveMessage(dataBase, dataInputStream);
 					int messageNumber = Integer.parseInt(message.getMessageNumber());
 					switch (messageNumber) {
 					// 获取好友列表
@@ -101,9 +90,12 @@ public class LinkThread extends Thread {
 					case 7:
 						message.message7(dataBase, dataOutputStream);
 						break;
+					// 发送消息
+					case 9:
+						message.message9(dataBase, username);
+						break;
 					}
 				}
-
 			}
 			// 连接异常断开时，维护socketTable
 			catch (SocketException socketException) {
