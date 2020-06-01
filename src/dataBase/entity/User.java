@@ -1,4 +1,4 @@
-package dataBase.model;
+package dataBase.entity;
 
 import java.util.Vector;
 
@@ -6,10 +6,15 @@ public class User {
 	private String username;
 	private String password;
 	private String nickname;
-	private Vector<String> friends = new Vector<String>(16);
-	private Vector<Integer> sessions = new Vector<Integer>(16);
-	// 待处理好友请求，储存的是字符串
-	private Vector<String> requests = new Vector<String>();
+
+	// 好友列表
+	private Vector<String> friends = new Vector<String>();
+
+	// 会话列表
+	private Vector<Integer> sessions = new Vector<Integer>();
+
+	// 好友请求列表
+	private Vector<FriendRequest> requests = new Vector<FriendRequest>();
 
 	public User() {
 	}
@@ -36,7 +41,7 @@ public class User {
 		this.password = password;
 	}
 
-	public String getNickname() {
+	synchronized public String getNickname() {
 		return nickname;
 	}
 
@@ -68,11 +73,15 @@ public class User {
 		this.sessions.add(sessionId);
 	}
 
-	public Vector<String> getRequests() {
+	public Vector<FriendRequest> getRequests() {
 		return requests;
 	}
 
-	public void setRequests(Vector<String> requests) {
+	public void setRequests(Vector<FriendRequest> requests) {
 		this.requests = requests;
+	}
+
+	public void addRequest(FriendRequest request) {
+		this.requests.add(request);
 	}
 }

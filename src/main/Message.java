@@ -1,10 +1,12 @@
 package main;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+
 import java.net.Socket;
+
 import java.util.Vector;
 import java.util.regex.Pattern;
 
@@ -12,8 +14,10 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 
 import dataBase.DataBase;
-import dataBase.model.Friend;
-import dataBase.model.User;
+import dataBase.entity.*;
+
+import redis.Redis;
+import redis.entity.Content;
 
 public class Message {
 	private String messageNumber = ""; // 对应开发文档里的编号
@@ -82,14 +86,27 @@ public class Message {
 		// Message.class);
 	}
 
-	public boolean message1(DataBase dataBase, DataOutputStream dataOutputStream) throws IOException {
+	/**
+	 * 初始化，1号消息的处理方法。
+	 * 
+	 * @param dataBase         数据库对象引用
+	 * @param dataOutputStream 输出流对象引用
+	 * @throws IOException 流IO错误
+	 */
+	public void message1(DataBase dataBase, DataOutputStream dataOutputStream) throws IOException {
 		Message message = new Message();
 		message.setMessageNumber("1r");
 		sendMessageAsByteArray(dataOutputStream, message);
-		return true;
 	}
 
-	// 登录
+	/**
+	 * 登录，2号消息的处理方法。
+	 * 
+	 * @param dataBase         数据库对象引用
+	 * @param dataOutputStream 输出流对象引用
+	 * @return true：登录成功；false：登录失败
+	 * @throws IOException 流IO错误
+	 */
 	public boolean message2(DataBase dataBase, DataOutputStream dataOutputStream) throws IOException {
 		// 先获得用户名和密码
 		String username = getMessageField1();
@@ -118,7 +135,14 @@ public class Message {
 		}
 	}
 
-	// 注册
+	/**
+	 * 注册，3号消息的处理方法。
+	 * 
+	 * @param dataBase         数据库对象引用
+	 * @param dataOutputStream 输出流对象引用
+	 * @return true：注册成功；false注册失败
+	 * @throws IOException 流IO错误
+	 */
 	public boolean message3(DataBase dataBase, DataOutputStream dataOutputStream) throws IOException {
 		// 获得用户名、密码和昵称
 		String username = getMessageField1();
@@ -155,7 +179,14 @@ public class Message {
 		}
 	}
 
-	// 请求好友列表
+	/**
+	 * 请求好友列表，4号消息的处理方法。
+	 * 
+	 * @param dataBase         数据库对象引用
+	 * @param username         被请求的用户名
+	 * @param dataOutputStream 输出流对象引用
+	 * @throws IOException 流IO错误
+	 */
 	public void message4(DataBase dataBase, String username, DataOutputStream dataOutputStream) throws IOException {
 		// 先获得所有的好友对象
 		Vector<Friend> friends = dataBase.getFriends(username);
@@ -180,7 +211,14 @@ public class Message {
 
 	}
 
-	// 创建会话
+	/**
+	 * 创建会话，6号消息的处理方法。
+	 * 
+	 * @param dataBase         数据库对象引用
+	 * @param username         创建者的用户名
+	 * @param dataOutputStream 输出流对象引用
+	 * @throws IOException 流IO错误
+	 */
 	public void message6(DataBase dataBase, String username, DataOutputStream dataOutputStream) throws IOException {
 		int sessionId = dataBase.createSession(username);
 		Message message = new Message("6r");
@@ -188,7 +226,13 @@ public class Message {
 		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
-	// 加入会话
+	/**
+	 * 加入会话，7号消息的处理方法。
+	 * 
+	 * @param dataBase         数据库对象引用
+	 * @param dataOutputStream 输出流对象引用
+	 * @throws IOException 流IO错误
+	 */
 	public void message7(DataBase dataBase, DataOutputStream dataOutputStream) throws IOException {
 		// 目标用户
 		String username = getMessageField1();
@@ -206,13 +250,27 @@ public class Message {
 
 	}
 
+	/**
+	 * 服务端处理9号消息。服务端接收到这种消息后，将其转发给会话中除了发送者外所有的用户。
+	 * 
+	 * @param dataBase       数据库引用
+	 * @param senderUsername 发送者用户名，即应LinkThread中储存的username
+	 * @throws IOException 向所有接收方的InputStream中写入数据时可能发生IOException
+	 */
 	public void message9(DataBase dataBase, String senderUsername) throws IOException {
-		// 服务器收到这种包后，应该将其转发给会话中除了发送者外所有的用户
 		// 内容除了messageNumber外不会变
 		setMessageNumber("9r");
+		// 会话编号
+		int sessionId = Integer.parseInt(getMessageField1());
+		//
+		String contentString = getMessageField2();
+		Content content = JSON.parseObject(contentString, Content.class);
+
+		// 储存在redis中
+		Redis.send(sessionId, content);
 
 		// 获得该会话中的所有用户
-		Vector<String> users = dataBase.getUsers(Integer.parseInt(getMessageField1()));
+		Vector<String> users = dataBase.getMembers(sessionId);
 
 		Socket socket;
 		OutputStream outputStream;
@@ -222,10 +280,31 @@ public class Message {
 		for (String username : users) {
 			if (!username.contentEquals(senderUsername)) {
 				socket = dataBase.searchSocketByUsername(username);
+				// 为空表示未上线，直接跳过
+				if (socket == null) {
+					continue;
+				}
 				outputStream = socket.getOutputStream();
 				dataOutputStream = new DataOutputStream(outputStream);
 				sendMessageAsByteArray(dataOutputStream, this);
 			}
 		}
+	}
+
+	public void message10(DataBase dataBase, DataOutputStream dataOutputStream, String requestorUsername)
+			throws IOException {
+		String receiverUsername = getMessageField1();
+		String checkMessage = getMessageField2();
+		// 构建好友请求对象
+		FriendRequest request = new FriendRequest(requestorUsername, checkMessage);
+		// 如果接收方在线，则直接发送11号消息
+		if (dataBase.addRequest(receiverUsername, request)) {
+
+		}
+
+	}
+
+	public void message11(DataBase dataBase, DataInputStream dataInputStream, DataOutputStream dataOutputStream) {
+
 	}
 }

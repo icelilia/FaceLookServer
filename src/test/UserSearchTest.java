@@ -1,7 +1,7 @@
 package test;
 
 import dataBase.DataBase;
-import dataBase.model.User;
+import dataBase.entity.User;
 
 import java.util.Arrays;
 import java.util.Vector;

@@ -1,7 +1,7 @@
 package test;
 
 import dataBase.*;
-import dataBase.model.*;
+import dataBase.entity.*;
 
 import java.util.Vector;
 
@@ -96,7 +96,7 @@ class UserDelegateImplTest {
         System.out.println();
         
 		/* 获取当前会话所有用户 */
-		Vector<String> members = dataBase.getUsers(sessionId);
+		Vector<String> members = dataBase.getMembers(sessionId);
 		System.out.print("刚刚新建的会话列表中的用户：");
         for (String str: members) {
 			System.out.print(str + "| ");
@@ -105,7 +105,7 @@ class UserDelegateImplTest {
         
 		/* 退出会话 */
 		if (dataBase.quitSession("denshiman", sessionId)) {
-			members = dataBase.getUsers(sessionId);
+			members = dataBase.getMembers(sessionId);
 			System.out.print("现在会话列表中的用户：");
 	        for (String str: members) {
 				System.out.print(str + "| ");

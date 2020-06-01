@@ -1,5 +1,6 @@
-package dataBase.model;
+package dataBase.entity;
 
+// 一个临时的数据类型
 public class Friend {
 	private String username;
 	private String nickname;

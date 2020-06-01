@@ -20,9 +20,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.FindIterable;
 
 import dataBase.MongoDBAPI;
-import dataBase.model.Friend;
-import dataBase.model.Session;
-import dataBase.model.User;
+import dataBase.entity.*;
 
 public class DataBase {
 	private static final String MONGODB_SERVER_HOST = "mongodb://Andersen:213533@127.0.0.1:27017/?authSource=admin&readPreference=primary&appname=MongoDB%20Compass&ssl=false";
@@ -62,22 +60,37 @@ public class DataBase {
 		return dataBaseInstance;
 	}
 
-	/* 数据库相关 */
-	// 检验用户名唯一性
+	// 数据库相关
+
+	/**
+	 * 检验用户名唯一性
+	 * 
+	 * @param username 待检验的用户名
+	 * @return true：该用户名唯一；false：该用户名已存在
+	 */
 	public boolean checkUsernameUniqueness(String username) {
 		Document document = new Document("username", username);
 		Document result = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, document);
 		return !isValidDocument(result);
 	}
 
-	// 用户注册
-	public boolean registerUser(User user) {
+	/**
+	 * 注册用户，将用户注册至数据库中。注意，该方法并不对待注册的用户对象做任何检查
+	 * 
+	 * @param user 待注册的用户对象
+	 */
+	public void registerUser(User user) {
 		Document document = Document.parse(JSON.toJSONString(user));
 		MongoDBAPI.insertOneDocument(faceLook, USER_COLLECTION_NAME, document);
-		return true;
 	}
 
-	// 检验登录
+	/**
+	 * 检验登录。登录时检验用户名和密码是否匹配
+	 * 
+	 * @param username 登录的用户名
+	 * @param password 登录的密码
+	 * @return true：匹配，登录成功；false：不匹配，登录失败
+	 */
 	public boolean checkLogin(String username, String password) {
 		Document document = new Document("username", username).append("password", password);
 		Document result = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, document);
@@ -114,6 +127,9 @@ public class DataBase {
 		// 新建session
 		Session.sessionNum++;
 		Session session = new Session();
+		// 默认创建者为群主
+		session.setManagerUsername(username);
+
 		int sessionId = session.getSessionId();
 
 		// session中添加用户
@@ -202,7 +218,7 @@ public class DataBase {
 	}
 
 	// 获得对话的用户列表
-	public Vector<String> getUsers(int sessionId) {
+	public Vector<String> getMembers(int sessionId) {
 		Document document = new Document("sessionId", sessionId);
 		Document result = MongoDBAPI.findOneDocument(faceLook, SESSION_COLLECTION_NAME, document);
 		if (isValidDocument(result)) {
@@ -210,6 +226,24 @@ public class DataBase {
 			return session.getSessionMembers();
 		}
 		return null;
+	}
+
+	/**
+	 * 在接收方的验证列表里添加好友请求，无论接收方是否在线。
+	 * 
+	 * @param receiverUsername 接收方的用户名
+	 * @param request          构造的请求对象
+	 * @return true：接收方在线；false：接收方离线
+	 */
+	public boolean addRequest(String receiverUsername, FriendRequest request) {
+		// 获取接收方用户对象
+		Document receiverDocument = new Document("username", receiverUsername);
+		Document _receiverDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, receiverDocument);
+		User receiver = JSON.parseObject(_receiverDocument.toJson(), User.class);
+		// 添加请求
+		receiver.addRequest(request);
+		// 返回接收方是否在线
+		return searchSocketByUsername(receiverUsername) != null ? true : false;
 	}
 
 	// 添加好友

@@ -94,6 +94,10 @@ public class LinkThread extends Thread {
 					case 9:
 						message.message9(dataBase, username);
 						break;
+					// 添加好友
+					case 10:
+						message.message10(dataBase, dataOutputStream, username);
+						break;
 					}
 				}
 			}

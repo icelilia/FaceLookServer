@@ -1,4 +1,4 @@
-package dataBase.model;
+package dataBase.entity;
 
 import java.util.Vector;
 
@@ -6,6 +6,8 @@ public class Session {
 	public static int sessionNum = 0;
 
 	private int sessionId = sessionNum;
+
+	private String managerUsername;
 
 	// 非群聊对话应该占大多数，默认初始成员数为2，节省空间
 	private Vector<String> sessionMembers = new Vector<String>(2);
@@ -23,7 +25,7 @@ public class Session {
 		return sessionMembers;
 	}
 
-	// 这个应该只用于多个用户共同新建一个Session时（多人建群）
+	// 这个方法是为了Fastjson能够反序列化
 	synchronized public void setSessionMembers(Vector<String> sessionMembers) {
 		this.sessionMembers = sessionMembers;
 	}
@@ -31,5 +33,13 @@ public class Session {
 	// 向对话中添加新的用户
 	synchronized public void addSessionMember(String sessionMemberUsername) {
 		this.sessionMembers.add(sessionMemberUsername);
+	}
+
+	public String getManagerUsername() {
+		return managerUsername;
+	}
+
+	public void setManagerUsername(String managerUsername) {
+		this.managerUsername = managerUsername;
 	}
 }
