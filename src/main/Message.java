@@ -191,24 +191,44 @@ public class Message {
 		// 先获得所有的好友对象
 		Vector<Friend> friends = dataBase.getFriends(username);
 
-		Vector<Message> messageArray = new Vector<Message>();
+		Vector<Message> messages = new Vector<Message>();
 		Message message;
-		byte[] messageByteArray;
 
 		for (Friend friend : friends) {
 			message = new Message("4r");
 			message.setMessageField1(friend.getUsername());
 			message.setMessageField2(friend.getNickname());
-			messageArray.add(message);
+			messages.add(message);
 		}
 		// 数组对象特殊处理
-		messageByteArray = JSONArray.toJSONString(messageArray).getBytes("utf-8");
+		byte[] messageByteArray = JSONArray.toJSONString(messages).getBytes("utf-8");
 		dataOutputStream.write(messageByteArray);
 	}
 
-	// 难点
-	public void message5() {
+	/**
+	 * 获取历史聊天记录，5号消息的处理方法。
+	 * 
+	 * @param dataBase         数据库对象引用
+	 * @param dataOutputStream 输出流对象引用
+	 * @param username         被请求的用户名
+	 * @throws IOException 流IO错误
+	 */
+	public void message5(DataBase dataBase, DataOutputStream dataOutputStream, String username) throws IOException {
+		// 获取用户所有的session
+		Vector<Integer> sessions = dataBase.getSessions(username);
 
+		Vector<Message> messages = new Vector<Message>();
+		Message message;
+
+		// 遍历sessions，从redis中搜索聊天记录
+		for (Integer sessionId : sessions) {
+			message = new Message("5r");
+			message.setMessageField1(String.valueOf(sessionId));
+			message.setMessageField2(Redis.receive(sessionId));
+			messages.add(message);
+		}
+		byte[] messageByteArray = JSONArray.toJSONString(messages).getBytes("utf-8");
+		dataOutputStream.write(messageByteArray);
 	}
 
 	/**

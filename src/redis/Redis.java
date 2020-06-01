@@ -45,9 +45,8 @@ public class Redis {
 		sendObject(content, sessionIdString);
 	}
 
-	public static Object receive(int sessionId) {
+	public static String receive(int sessionId) {
 		String sessionIdString = String.valueOf(sessionId);
-
 		return getObject(sessionIdString);
 	}
 
@@ -59,7 +58,7 @@ public class Redis {
 	private static String getObject(String key) {
 		ArrayList<Content> messageList = ContentRedisUtil.INSTANCE.fetch(key);
 
-		JSONArray list = new JSONArray();
+		JSONArray jsonList = new JSONArray();
 
 		for (Content content : messageList) {
 			JSONObject json = new JSONObject();
@@ -67,11 +66,9 @@ public class Redis {
 			json.put("from", content.getFrom());
 			json.put("time", content.getTime());
 			json.put("to", content.getTo());
-			list.add(json);
+			jsonList.add(json);
 		}
-
-		logger.info("get" + list.toJSONString());
-
-		return list.toJSONString();
+		logger.info("get" + jsonList.toJSONString());
+		return jsonList.toJSONString();
 	}
 }

@@ -80,7 +80,7 @@ public class LinkThread extends Thread {
 						break;
 					// 获取历史消息列表
 					case 5:
-						message.message5();
+						message.message5(dataBase, dataOutputStream, username);
 						break;
 					// 创建会话
 					case 6:
