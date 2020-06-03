@@ -86,13 +86,6 @@ public class Message {
 		dataOutputStream.write(messageByteArray);
 	}
 
-	private void sendMessageArrayAsByteArray(DataOutputStream dataOutputStream, Vector<Message> messages)
-			throws IOException {
-		byte[] messageByteArray;
-		messageByteArray = JSONArray.toJSONString(messages).getBytes("utf-8");
-		dataOutputStream.write(messageByteArray);
-	}
-
 	/**
 	 * 注销登录，0号消息的处理方法。将username从socketTable中删除，并输出日志。
 	 * 
@@ -149,6 +142,7 @@ public class Message {
 			message.setMessageField2("OK");
 			message.setMessageField3(username);
 			sendMessageAsByteArray(dataOutputStream, message);
+			System.out.println("用户" + "[" + username + "]" + "已登录");
 			return true;
 		}
 	}
@@ -219,7 +213,10 @@ public class Message {
 			message.setMessageField2(friend.getNickname());
 			messages.add(message);
 		}
-		sendMessageArrayAsByteArray(dataOutputStream, messages);
+		message = new Message("4r");
+		message.setMessageField1(String.valueOf(messages.size()));
+		message.setMessageField2(JSONArray.toJSONString(messages));
+		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
 	/**
@@ -244,7 +241,10 @@ public class Message {
 			message.setMessageField2(Redis.receive(sessionId));
 			messages.add(message);
 		}
-		sendMessageArrayAsByteArray(dataOutputStream, messages);
+		message = new Message("5r");
+		message.setMessageField1(String.valueOf(messages.size()));
+		message.setMessageField2(JSONArray.toJSONString(messages));
+		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
 	/**
@@ -289,7 +289,10 @@ public class Message {
 			message.setMessageField2(request.getCheckMessage());
 			messages.add(message);
 		}
-		sendMessageArrayAsByteArray(dataOutputStream, messages);
+		message = new Message("8r");
+		message.setMessageField1(String.valueOf(messages.size()));
+		message.setMessageField2(JSONArray.toJSONString(messages));
+		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
 	/**
@@ -417,7 +420,10 @@ public class Message {
 			message.setMessageField2(result.getResult());
 			messages.add(message);
 		}
-		sendMessageArrayAsByteArray(dataOutputStream, messages);
+		message = new Message("14r");
+		message.setMessageField1(String.valueOf(messages.size()));
+		message.setMessageField2(JSONArray.toJSONString(messages));
+		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
 }

@@ -3,6 +3,7 @@ package main;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+
 import dataBase.DataBase;
 import main.Message;
 
@@ -48,13 +49,11 @@ public class LinkThread extends Thread {
 						// 需要记录一下用户名
 						username = message.getMessageField1();
 						if (message.message2(dataBase, dataOutputStream)) {
-							System.out.println("用户" + "[" + username + "]" + "已登录");
 							// 添加socket关联
 							dataBase.addSocket(username, socket);
 							// 跳出循环
 							break;
 						} else {
-							System.out.println("用户" + "[" + username + "]" + "登录出错");
 							username = null;
 						}
 					}
@@ -120,7 +119,6 @@ public class LinkThread extends Thread {
 			}
 			// 连接异常断开时，维护socketTable
 			catch (SocketException socketException) {
-				System.out.println("用户" + "[" + username + "]" + "异常登出");
 				dataBase.delSocket(username);
 				socket = null;
 				username = null;
