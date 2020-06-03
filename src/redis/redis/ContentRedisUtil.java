@@ -1,7 +1,6 @@
 package redis.redis;
 
-import redis.entity.Content;
-import redis.entity.ContentUtil;
+import redis.entity.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -28,6 +27,7 @@ public class ContentRedisUtil extends MyRedisUtil {
 	public ArrayList<Content> fetch(String key) {
 		Jedis jedis = MyJedisPool.INSTANCE.getJedis();
 		ArrayList<String> strings = (ArrayList<String>) jedis.lrange(key, 0, -1);
+		jedis.close();
 		ArrayList<Content> contents = new ArrayList<Content>();
 		for (String s : strings) {
 			contents.add(ContentUtil.INSTANCE.parse(s));

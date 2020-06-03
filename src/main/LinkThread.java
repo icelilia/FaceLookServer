@@ -37,7 +37,7 @@ public class LinkThread extends Thread {
 
 				// 连接初始化
 				message = new Message();
-				message.message1(dataBase, dataOutputStream);
+				message.message1(dataOutputStream);
 
 				// 循环接收登录请求或者注册请求
 				while (true) {
@@ -55,15 +55,14 @@ public class LinkThread extends Thread {
 							break;
 						} else {
 							System.out.println("用户" + "[" + username + "]" + "登录出错");
+							username = null;
 						}
 					}
 					// 3号请求
 					else if (messageNumber == 3) {
-						username = message.getMessageField1();
-						if (message.message3(dataBase, dataOutputStream)) {
-							System.out.println("用户" + "[" + username + "]" + "已注册");
-						} else {
-							System.out.println("用户" + "[" + username + "]" + "注册出错");
+						String temp = message.message3(dataBase, dataOutputStream);
+						if (temp != null) {
+							System.out.println("用户" + "[" + temp + "]" + "已注册");
 						}
 					}
 					// 其余请求直接跳过
@@ -74,9 +73,15 @@ public class LinkThread extends Thread {
 					message = Message.receiveMessage(dataBase, dataInputStream);
 					int messageNumber = Integer.parseInt(message.getMessageNumber());
 					switch (messageNumber) {
+					// 注销
+					case 0:
+						message.message0(dataBase, username);
+						socket = null;
+						username = null;
+						break;
 					// 获取好友列表
 					case 4:
-						message.message4(dataBase, username, dataOutputStream);
+						message.message4(dataBase, dataOutputStream, username);
 						break;
 					// 获取历史消息列表
 					case 5:
@@ -84,27 +89,41 @@ public class LinkThread extends Thread {
 						break;
 					// 创建会话
 					case 6:
-						message.message6(dataBase, username, dataOutputStream);
+						message.message6(dataBase, dataOutputStream, username);
 						break;
-					// 加入会话
+					// 将某用户加入会话
 					case 7:
-						message.message7(dataBase, dataOutputStream);
+						message.message7(dataBase);
 						break;
-					// 发送消息
+					// 获取申请列表
+					case 8:
+						message.message8(dataBase, dataOutputStream, username);
+						break;
+					// 发送信息
 					case 9:
 						message.message9(dataBase, username);
 						break;
-					// 添加好友
+					// 好友申请
 					case 10:
-						message.message10(dataBase, dataOutputStream, username);
+						message.message10(dataBase, username);
+						break;
+					// 申请结果
+					case 12:
+						message.message12(dataBase, username);
+						break;
+					// 获取结果列表
+					case 14:
+						message.message14(dataBase, dataOutputStream, username);
 						break;
 					}
 				}
 			}
 			// 连接异常断开时，维护socketTable
 			catch (SocketException socketException) {
-				System.out.println("用户" + "[" + username + "]" + "已登出");
+				System.out.println("用户" + "[" + username + "]" + "异常登出");
 				dataBase.delSocket(username);
+				socket = null;
+				username = null;
 			}
 			// 其他异常的情况回头仔细考虑
 			catch (Exception e) {

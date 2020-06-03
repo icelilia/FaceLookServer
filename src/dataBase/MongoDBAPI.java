@@ -2,6 +2,7 @@ package dataBase;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.FindIterable;
 
@@ -65,6 +66,12 @@ public class MongoDBAPI {
 			Document document) {
 		MongoCollection<Document> collection = mongoDatabase.getCollection(collectionName);
 		return collection.find(document);
+	}
+
+	// 获取某个文档的某个字段的最大值
+	public static Document getMax(MongoDatabase mongoDatabase, String collectionName, String term) {
+		MongoCollection<Document> collection = mongoDatabase.getCollection(collectionName);
+		return collection.find().sort(Sorts.orderBy(Sorts.descending(term))).skip(0).limit(1).first();
 	}
 
 }

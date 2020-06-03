@@ -9,8 +9,7 @@ public class Session {
 
 	private String managerUsername;
 
-	// 非群聊对话应该占大多数，默认初始成员数为2，节省空间
-	private Vector<String> sessionMembers = new Vector<String>(2);
+	private Vector<String> sessionMembers = new Vector<String>();
 
 	public int getSessionId() {
 		return sessionId;

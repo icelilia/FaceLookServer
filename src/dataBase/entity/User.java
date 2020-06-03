@@ -7,14 +7,17 @@ public class User {
 	private String password;
 	private String nickname;
 
-	// 好友列表
-	private Vector<String> friends = new Vector<String>();
+	// 好友列表，这里只用用户名，防止后面改昵称时牵扯太多
+	private Vector<String> friendUsernames = new Vector<String>();
 
 	// 会话列表
-	private Vector<Integer> sessions = new Vector<Integer>();
+	private Vector<Integer> sessionIds = new Vector<Integer>();
 
-	// 好友请求列表
-	private Vector<FriendRequest> requests = new Vector<FriendRequest>();
+	// 请求列表
+	private Vector<Request> requests = new Vector<Request>();
+
+	// 结果列表
+	private Vector<Result> results = new Vector<Result>();
 
 	public User() {
 	}
@@ -49,39 +52,51 @@ public class User {
 		this.nickname = nickname;
 	}
 
-	public Vector<String> getFriends() {
-		return friends;
+	public Vector<String> getFriendUsernames() {
+		return friendUsernames;
 	}
 
-	public void setFriends(Vector<String> friends) {
-		this.friends = friends;
+	public void setFriendUsernames(Vector<String> friendUsernames) {
+		this.friendUsernames = friendUsernames;
 	}
 
-	public void addFriend(String friendUsername) {
-		this.friends.add(friendUsername);
+	public void addFriendUsername(String friendUsername) {
+		this.friendUsernames.add(friendUsername);
 	}
 
-	public Vector<Integer> getSessions() {
-		return sessions;
+	public Vector<Integer> getSessionIds() {
+		return sessionIds;
 	}
 
-	public void setSessions(Vector<Integer> sessions) {
-		this.sessions = sessions;
+	public void setSessionIds(Vector<Integer> sessions) {
+		this.sessionIds = sessions;
 	}
 
 	public void addSession(int sessionId) {
-		this.sessions.add(sessionId);
+		this.sessionIds.add(sessionId);
 	}
 
-	public Vector<FriendRequest> getRequests() {
+	public Vector<Request> getRequests() {
 		return requests;
 	}
 
-	public void setRequests(Vector<FriendRequest> requests) {
+	public void setRequests(Vector<Request> requests) {
 		this.requests = requests;
 	}
 
-	public void addRequest(FriendRequest request) {
+	public void addRequest(Request request) {
 		this.requests.add(request);
+	}
+
+	public Vector<Result> getResults() {
+		return results;
+	}
+
+	public void setResults(Vector<Result> results) {
+		this.results = results;
+	}
+
+	public void addResults(Result result) {
+		this.results.add(result);
 	}
 }

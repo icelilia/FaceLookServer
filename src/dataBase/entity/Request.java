@@ -1,14 +1,14 @@
 package dataBase.entity;
 
-public class FriendRequest {
+public class Request {
 	private String username;
 	private String checkMessage;
 
-	public FriendRequest() {
+	public Request() {
 
 	}
 
-	public FriendRequest(String username, String checkMessage) {
+	public Request(String username, String checkMessage) {
 		this.username = username;
 		this.checkMessage = checkMessage;
 	}
