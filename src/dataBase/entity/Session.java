@@ -8,6 +8,8 @@ public class Session {
 	private int sessionId = sessionNum;
 
 	private String managerUsername;
+	
+	private String sessionName;
 
 	private Vector<String> sessionMembers = new Vector<String>();
 
@@ -40,5 +42,13 @@ public class Session {
 
 	public void setManagerUsername(String managerUsername) {
 		this.managerUsername = managerUsername;
+	}
+
+	public String getSessionName() {
+		return sessionName;
+	}
+
+	public void setSessionName(String sessionName) {
+		this.sessionName = sessionName;
 	}
 }

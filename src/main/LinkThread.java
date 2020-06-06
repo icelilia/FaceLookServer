@@ -42,7 +42,7 @@ public class LinkThread extends Thread {
 
 				// 循环接收登录请求或者注册请求
 				while (true) {
-					message = Message.receiveMessage(dataBase, dataInputStream);
+					message = Message.receiveMessage(dataInputStream);
 					int messageNumber = Integer.parseInt(message.getMessageNumber());
 					// 2号请求
 					if (messageNumber == 2) {
@@ -59,9 +59,9 @@ public class LinkThread extends Thread {
 					}
 					// 3号请求
 					else if (messageNumber == 3) {
-						String temp = message.message3(dataBase, dataOutputStream);
-						if (temp != null) {
-							System.out.println("用户" + "[" + temp + "]" + "已注册");
+						String registeredUsername = message.message3(dataBase, dataOutputStream);
+						if (registeredUsername != null) {
+							System.out.println("用户" + "[" + registeredUsername + "]" + "已注册");
 						}
 					}
 					// 其余请求直接跳过
@@ -69,7 +69,7 @@ public class LinkThread extends Thread {
 
 				// 接下来就是循环读取请求了
 				while (true) {
-					message = Message.receiveMessage(dataBase, dataInputStream);
+					message = Message.receiveMessage(dataInputStream);
 					int messageNumber = Integer.parseInt(message.getMessageNumber());
 					switch (messageNumber) {
 					// 注销
@@ -114,12 +114,27 @@ public class LinkThread extends Thread {
 					case 14:
 						message.message14(dataBase, dataOutputStream, username);
 						break;
+					// 删除好友
+					case 15:
+						message.message15(dataBase, dataOutputStream, username);
+						break;
+					// 退出群聊
+					case 17:
+						message.message17(dataBase, username);
+						break;
+					// 更新个人信息
+					case 18:
+						message.message18(dataBase, username);
+						break;
 					}
 				}
 			}
 			// 连接异常断开时，维护socketTable
 			catch (SocketException socketException) {
 				dataBase.delSocket(username);
+				if (username != null) {
+					System.out.println("用户" + "[" + username + "]" + "异常登出");
+				}
 				socket = null;
 				username = null;
 			}

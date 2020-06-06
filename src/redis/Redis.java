@@ -1,7 +1,6 @@
 package redis;
 
 import redis.entity.Content;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +9,12 @@ import com.alibaba.fastjson.JSONObject;
 
 import redis.redis.ContentRedisUtil;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
 
 public class Redis {
 	static Logger logger;
@@ -19,27 +23,13 @@ public class Redis {
 		logger = LoggerFactory.getLogger(Redis.class);
 	}
 
-	/**
-	 * 按会话编号，将聊天记录储存在redis中
-	 * 
-	 * @param sessionId   会话编号
-	 * @param from        发送者用户名
-	 * @param to          被@对象用户名，无则为空字符串
-	 * @param time        发送时的客户端本地时间
-	 * @param messageText 消息文本
-	 */
-	public static void send(int sessionId, String from, String to, String time, String messageText) {
+	public static void send(int sessionId, String from, String to, Date date, String messageText, String kind) {
+		final SimpleDateFormat dateForm = new SimpleDateFormat("yyyy-mm-dd-hh-mm-ss");
+		Content content = new Content(from, to, dateForm.format(date), messageText, kind);
 		String sessionIdString = String.valueOf(sessionId);
-		Content content = new Content(from, to, time, messageText);
 		sendObject(content, sessionIdString);
 	}
 
-	/**
-	 * 按会话编号，将聊天记录储存在redis中
-	 * 
-	 * @param sessionId 会话编号
-	 * @param content   Content对象的引用
-	 */
 	public static void send(int sessionId, Content content) {
 		String sessionIdString = String.valueOf(sessionId);
 		sendObject(content, sessionIdString);
@@ -50,25 +40,52 @@ public class Redis {
 		return getObject(sessionIdString);
 	}
 
-	private static void sendObject(Object obj, String uuid) {
+	public static void sendObject(Object obj, String uuid) {
 		ContentRedisUtil.INSTANCE.store(uuid, obj);
 		logger.info("send " + obj);
 	}
 
-	private static String getObject(String key) {
-		ArrayList<Content> messageList = ContentRedisUtil.INSTANCE.fetch(key);
+	public static String getObject(String key) {
 
-		JSONArray jsonList = new JSONArray();
+		ArrayList<Content> contents = ContentRedisUtil.INSTANCE.fetch(key);
 
-		for (Content content : messageList) {
+		Collections.sort(contents, new Comparator<Content>() {
+			public int compare(Content o1, Content o2) {
+				try {
+					SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd-hh-mm-ss");
+					Date d1 = dateFormat.parse(o1.getTime());
+					Date d2 = dateFormat.parse(o2.getTime());
+					if (d1.compareTo(d2) > 0)
+						return 1;
+					else
+						return -1;
+				} catch (ParseException e) {
+					e.printStackTrace();
+				}
+				return 0;
+			}
+		});
+
+		JSONArray list = new JSONArray();
+
+		for (Content obj : contents) {
+			Content content = (Content) obj;
 			JSONObject json = new JSONObject();
 			json.put("content", content.getContent());
 			json.put("from", content.getFrom());
 			json.put("time", content.getTime());
 			json.put("to", content.getTo());
-			jsonList.add(json);
+			json.put("kind", content.getKind());
+			list.add(json);
 		}
-		logger.info("get" + jsonList.toJSONString());
-		return jsonList.toJSONString();
+
+		logger.info("get" + list.toJSONString());
+
+		return list.toJSONString();
+	}
+
+	public static void delObject(int key) {
+		String k = String.valueOf(key);
+		ContentRedisUtil.INSTANCE.delObject(k);
 	}
 }

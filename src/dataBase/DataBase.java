@@ -1,9 +1,9 @@
 package dataBase;
 
 import java.net.Socket;
-
+import java.util.Date;
 import java.util.Hashtable;
-import java.util.Iterator;
+import java.util.Set;
 import java.util.Vector;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -65,8 +65,13 @@ public class DataBase {
 		// 数据库初始化工作
 		// 获取当前最大的sessionId，以防重启服务端后生成的sessionId和以前的重复
 		Document document = MongoDBAPI.getMax(faceLook, SESSION_COLLECTION_NAME, "sessionId");
-		int maxSessionId = JSON.parseObject(document.toJson(), Session.class).getSessionId();
-		Session.sessionNum = maxSessionId;
+		try {
+			int maxSessionId = JSON.parseObject(document.toJson(), Session.class).getSessionId();
+			Session.sessionNum = maxSessionId;
+		} catch (Exception e) {
+			Session.sessionNum = 0;
+		}
+
 	}
 
 	/**
@@ -115,9 +120,31 @@ public class DataBase {
 	 * @return true：匹配，登录成功；false：不匹配，登录失败
 	 */
 	synchronized public boolean checkLogin(final String username, final String password) {
-		Document document = new Document("username", username).append("password", password);
-		Document searchResult = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, document);
+		Document searchDocument = new Document("username", username).append("password", password);
+		Document searchResult = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchDocument);
 		return isValidDocument(searchResult);
+	}
+
+	synchronized public void updateUserInfo(User user) {
+		Document searchUserDocument = new Document("username", user.getUsername());
+		Document userDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchUserDocument);
+		User originUser = JSON.parseObject(userDocument.toJson(), User.class);
+
+		originUser.setNickname(user.getNickname());
+		originUser.setAvatarAddress(user.getAvatarAddress());
+		originUser.setEmail(user.getEmail());
+		originUser.setPhoneNumber(user.getPhoneNumber());
+		originUser.setOccupation(user.getOccupation());
+		originUser.setLocation(user.getLocation());
+
+		Document newUserDocument = Document.parse(JSON.toJSONString(originUser));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, searchUserDocument, newUserDocument);
+	}
+
+	synchronized public User getUserByUsername(String username) {
+		Document searchUserDocument = new Document("username", username);
+		Document userDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchUserDocument);
+		return JSON.parseObject(userDocument.toJson(), User.class);
 	}
 
 	/**
@@ -126,22 +153,21 @@ public class DataBase {
 	 * @param username 指定用户的用户名
 	 * @return 指定用户的好友列表，一个元素类型为Friend的Vector
 	 */
-	synchronized public Vector<Friend> getFriends(final String username) {
+	synchronized public Vector<User> getFriends(final String username) {
 		Document document = new Document("username", username);
 		Document searchResult = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, document);
 		User user = JSON.parseObject(searchResult.toJson(), User.class);
 
 		Vector<String> friendUsernames = user.getFriendUsernames();
-		Vector<Friend> friends = new Vector<Friend>(friendUsernames.size());
-		Friend friend;
+		Vector<User> friends = new Vector<User>(friendUsernames.size());
+
+		User friend;
 		for (String friendUsername : friendUsernames) {
 			document = new Document("username", friendUsername);
 			searchResult = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, document);
-			user = JSON.parseObject(searchResult.toJson(), User.class);
+			friend = JSON.parseObject(searchResult.toJson(), User.class);
 
-			friend = new Friend();
-			friend.setUsername(friendUsername);
-			friend.setNickname(user.getNickname());
+			friend.justInformation();
 			friends.add(friend);
 		}
 		return friends;
@@ -155,13 +181,52 @@ public class DataBase {
 	 */
 	synchronized public int createSession(String username) {
 		// 获取用户
-		Document oldDocument = new Document("username", username);
-		Document result = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, oldDocument);
-		User user = JSON.parseObject(result.toJson(), User.class);
+		Document searchUserDocument = new Document("username", username);
+		Document userDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchUserDocument);
+		User user = JSON.parseObject(userDocument.toJson(), User.class);
 
 		// 新建session
 		Session.sessionNum++;
 		Session session = new Session();
+
+		int sessionId = session.getSessionId();
+
+		// session中添加用户
+		session.addSessionMember(user.getUsername());
+
+		// 用户中添加session
+		user.addSession(sessionId);
+
+		// 记录入库
+		Document sessionDocument = Document.parse(JSON.toJSONString(session));
+		MongoDBAPI.insertOneDocument(faceLook, SESSION_COLLECTION_NAME, sessionDocument);
+
+		Document newUserDocument = Document.parse(JSON.toJSONString(user));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, userDocument, newUserDocument);
+
+		return sessionId;
+	}
+
+	/**
+	 * 创建群聊。创建者将自动加入新会话，同时默认创建者为新会话的manager。
+	 * 
+	 * @param username    创建者的用户名
+	 * @param sessionName 创建的群聊的名称
+	 * @return 新创建的会话的sessionId
+	 */
+	synchronized public int createSession(String username, String sessionName) {
+		// 获取用户
+		Document searchUserDocument = new Document("username", username);
+		Document userDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchUserDocument);
+		User user = JSON.parseObject(userDocument.toJson(), User.class);
+
+		// 新建session
+		Session.sessionNum++;
+		Session session = new Session();
+
+		// 设置群聊名称
+		session.setSessionName(sessionName);
+
 		// 默认创建者为群主
 		session.setManagerUsername(username);
 
@@ -173,12 +238,28 @@ public class DataBase {
 		// 用户中添加session
 		user.addSession(sessionId);
 
-		// 记录入库
-		Document document = Document.parse(JSON.toJSONString(session));
-		MongoDBAPI.insertOneDocument(faceLook, SESSION_COLLECTION_NAME, document);
-		Document newDocument = Document.parse(JSON.toJSONString(user));
-		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, oldDocument, newDocument);
+		// 写回
+		Document sessionDocument = Document.parse(JSON.toJSONString(session));
+		MongoDBAPI.insertOneDocument(faceLook, SESSION_COLLECTION_NAME, sessionDocument);
+
+		Document newUserDocument = Document.parse(JSON.toJSONString(user));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, userDocument, newUserDocument);
+
 		return sessionId;
+	}
+
+	synchronized public String getSessionName(int sessionId) {
+		Document searchSessionDocument = new Document("sessionId", sessionId);
+		Document sessionDocument = MongoDBAPI.findOneDocument(faceLook, SESSION_COLLECTION_NAME, searchSessionDocument);
+		Session session = JSON.parseObject(sessionDocument.toJson(), Session.class);
+		return session.getSessionName();
+	}
+
+	synchronized public String getSessionManager(int sessionId) {
+		Document searchSessionDocument = new Document("sessionId", sessionId);
+		Document sessionDocument = MongoDBAPI.findOneDocument(faceLook, SESSION_COLLECTION_NAME, searchSessionDocument);
+		Session session = JSON.parseObject(sessionDocument.toJson(), Session.class);
+		return session.getManagerUsername();
 	}
 
 	/**
@@ -227,38 +308,36 @@ public class DataBase {
 	 * @param sessionId
 	 * @return
 	 */
-	synchronized public boolean quitSession(String username, int sessionId) {
-		Document sessionDocument = new Document("sessionId", sessionId);
-		Document sessionResult = MongoDBAPI.findOneDocument(faceLook, SESSION_COLLECTION_NAME, sessionDocument);
+	synchronized public void quitSession(String username, int sessionId) {
+		Document searchSessionDocument = new Document("sessionId", sessionId);
+		Document sessionDocument = MongoDBAPI.findOneDocument(faceLook, SESSION_COLLECTION_NAME, searchSessionDocument);
+		Session session = JSON.parseObject(sessionDocument.toJson(), Session.class);
 
-		Document userDocument = new Document("username", username);
-		Document userResult = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, userDocument);
+		Document searchUserDocument = new Document("username", username);
+		Document userDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchUserDocument);
+		User user = JSON.parseObject(userDocument.toJson(), User.class);
 
-		if (isValidDocument(sessionResult) && isValidDocument(userResult)) {
-			// 更新会话集合中用户信息
-			Session session = JSON.parseObject(sessionResult.toJson(), Session.class);
-			// String类重写了equals方法，可以直接remove
-			session.getSessionMembers().remove(username);
-			Document newSessionDocument = Document.parse(JSON.toJSONString(session));
-			MongoDBAPI.updateOneDocument(faceLook, SESSION_COLLECTION_NAME, sessionDocument, newSessionDocument);
-
-			// 更新用户下面的会话列表
-			User user = JSON.parseObject(userResult.toJson(), User.class);
-			// 这里remove时要注意，Integer没有重写Object的equals方法
-			Vector<Integer> sessionIds = user.getSessionIds();
-			Iterator<Integer> iter = sessionIds.iterator();
-			while (iter.hasNext()) {
-				Integer id = iter.next();
-				if (id.intValue() == sessionId) {
-					sessionIds.remove(id);
-					break;
-				}
+		// 更新会话集合中用户信息
+		Vector<String> sessionMembers = session.getSessionMembers();
+		for (String str : sessionMembers) {
+			if (str.contentEquals(username)) {
+				sessionMembers.remove(str);
+				break;
 			}
-			Document newUserDocument = Document.parse(JSON.toJSONString(user));
-			MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, userDocument, newUserDocument);
-			return true;
 		}
-		return false;
+		// 更新用户下面的会话列表
+		Vector<Integer> sessionIds = user.getSessionIds();
+		for (Integer i : sessionIds) {
+			if (i == sessionId) {
+				sessionIds.remove(i);
+				break;
+			}
+		}
+		Document newSessionDocument = Document.parse(JSON.toJSONString(session));
+		MongoDBAPI.updateOneDocument(faceLook, SESSION_COLLECTION_NAME, searchSessionDocument, newSessionDocument);
+
+		Document newUserDocument = Document.parse(JSON.toJSONString(user));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, searchUserDocument, newUserDocument);
 	}
 
 	/**
@@ -289,19 +368,36 @@ public class DataBase {
 	}
 
 	/**
-	 * 发送方发出好友申请。无论接收方是否在线，该申请均会被添加至接收方的申请列表里。
+	 * 发送方发出好友或群聊申请。无论接收方是否在线，该申请均会被添加至接收方的申请列表里。
 	 * 
-	 * @param receiverUsername 接收方的用户名
-	 * @param request          构造的申请对象
-	 * @return true：接收方在线；false：接收方离线
+	 * @param requestorUsername 发送方的用户名
+	 * @param receiverUsername  好友请求：接收方的用户名；群聊请求：null
+	 * @param checkMessage      验证信息
+	 * @param sessionId         好友请求：“0”；群聊请求：sessionId
+	 * @return 好友请求：接收方的用户名；群聊请求：群主用户名
 	 */
-	synchronized public void addRequest(String receiverUsername, Request request) {
+	synchronized public String addRequest(String requestorUsername, String receiverUsername, String checkMessage,
+			int sessionId, Date date) {
+		// 判断
+		if (receiverUsername == null) {
+			receiverUsername = getSessionManager(sessionId);
+		}
+
 		// 获取接收方用户对象
 		Document searchReceiverDocument = new Document("username", receiverUsername);
 		Document receiverDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchReceiverDocument);
 		User receiver = JSON.parseObject(receiverDocument.toJson(), User.class);
+
+		Request request = new Request(sessionId, requestorUsername, checkMessage, date);
+
 		// 添加请求
 		receiver.addRequest(request);
+
+		// 写回
+		Document newReceiverDocument = Document.parse(JSON.toJSONString(receiver));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, receiverDocument, newReceiverDocument);
+
+		return receiverUsername;
 	}
 
 	/**
@@ -312,38 +408,81 @@ public class DataBase {
 	 * @param result            构造的结果对象
 	 */
 	synchronized public void checkRequest(final String requestorUsername, final String receiverUsername,
-			final String result) {
+			final int sessionId, final String result) {
+
 		// 获取接收方用户对象
 		Document searchReceiverDocument = new Document("username", receiverUsername);
 		Document receiverDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchReceiverDocument);
 		User receiver = JSON.parseObject(receiverDocument.toJson(), User.class);
 
 		// 获取申请方用户对象
-		Document searchRequestorDocument = new Document("username", receiverUsername);
+		Document searchRequestorDocument = new Document("username", requestorUsername);
 		Document requestorDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME,
 				searchRequestorDocument);
-		User requestor = JSON.parseObject(receiverDocument.toJson(), User.class);
+		User requestor = JSON.parseObject(requestorDocument.toJson(), User.class);
 
 		// 将申请方从接收方的请求列表里删除
+		boolean hadRequest = false;
 		Vector<Request> requests = receiver.getRequests();
-		for (Request request : requests) {
-			if (request.getUsername().contentEquals(requestorUsername)) {
-				requests.remove(request);
+		for (Request tempRequest : requests) {
+			if (tempRequest.getRequestorUsername().contentEquals(requestorUsername)
+					&& tempRequest.getSessionId().contentEquals(String.valueOf(sessionId))) {
+				requests.remove(tempRequest);
+				hadRequest = true;
 				break;
 			}
 		}
 
-		// 若同意，则双方互相成为好友
-		if (result.contentEquals("1")) {
-			receiver.getFriendUsernames().add(requestorUsername);
-			Document newReceiverDocument = Document.parse(JSON.toJSONString(receiver));
-			MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, receiverDocument, newReceiverDocument);
-
-			requestor.getFriendUsernames().add(receiverUsername);
-			Document newRequestorDocument = Document.parse(JSON.toJSONString(requestor));
-			MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, requestorDocument, newRequestorDocument);
+		// 并未在申请列表里则直接结束，什么也不做
+		if (!hadRequest) {
+			return;
 		}
-		requestor.getResults().add(new Result(receiverUsername, result));
+
+		// 好友请求
+		if (sessionId == 0) {
+			// 若同意，则双方互相成为好友
+			if (result.contentEquals("1")) {
+				receiver.getFriendUsernames().add(requestorUsername);
+				requestor.getFriendUsernames().add(receiverUsername);
+			}
+		}
+		// 群聊请求
+		else {
+			if (result.contentEquals("1")) {
+				joinSession(requestorUsername, sessionId);
+			}
+		}
+		// 结果
+
+		Document newReceiverDocument = Document.parse(JSON.toJSONString(receiver));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, receiverDocument, newReceiverDocument);
+
+		requestorDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME, searchRequestorDocument);
+		requestor.getResults().add(new Result(sessionId, receiverUsername, result, new Date()));
+		Document newRequestorDocument = Document.parse(JSON.toJSONString(requestor));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, requestorDocument, newRequestorDocument);
+	}
+
+	synchronized public void delFriend(String activeUsername, String passiveUsername) {
+		// 获取两个用户对象
+		Document searchActiveUserDocument = new Document("username", activeUsername);
+		Document activeUserDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME,
+				searchActiveUserDocument);
+		User activeUser = JSON.parseObject(activeUserDocument.toJson(), User.class);
+
+		Document searchPassiveUserDocument = new Document("username", passiveUsername);
+		Document passiveUserDocument = MongoDBAPI.findOneDocument(faceLook, USER_COLLECTION_NAME,
+				searchPassiveUserDocument);
+		User passiveUser = JSON.parseObject(passiveUserDocument.toJson(), User.class);
+
+		// 删除好友关系后写回
+		activeUser.getFriendUsernames().remove(passiveUsername);
+		Document newActiveUserDocument = Document.parse(JSON.toJSONString(activeUser));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, activeUserDocument, newActiveUserDocument);
+
+		passiveUser.getFriendUsernames().remove(activeUsername);
+		Document newPassiveUserDocument = Document.parse(JSON.toJSONString(passiveUser));
+		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, passiveUserDocument, newPassiveUserDocument);
 	}
 
 	/**
@@ -438,5 +577,9 @@ public class DataBase {
 		if (username != null && searchSocketByUsername(username) != null) {
 			socketTable.remove(username);
 		}
+	}
+
+	public Set<String> showSocket() {
+		return socketTable.keySet();
 	}
 }

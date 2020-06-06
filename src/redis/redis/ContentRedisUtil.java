@@ -1,6 +1,7 @@
 package redis.redis;
 
-import redis.entity.*;
+import redis.entity.Content;
+import redis.entity.ContentUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -33,5 +34,12 @@ public class ContentRedisUtil extends MyRedisUtil {
 			contents.add(ContentUtil.INSTANCE.parse(s));
 		}
 		return contents;
+	}
+
+	@Override
+	public void delObject(String key) {
+		Jedis jedis = MyJedisPool.INSTANCE.getJedis();
+		jedis.del(key);
+		jedis.close();
 	}
 }

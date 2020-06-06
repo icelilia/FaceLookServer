@@ -6,7 +6,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
 import java.net.Socket;
-
+import java.text.ParseException;
+import java.util.Date;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
@@ -15,15 +16,14 @@ import com.alibaba.fastjson.JSONArray;
 
 import dataBase.DataBase;
 import dataBase.entity.*;
-
 import redis.Redis;
 import redis.entity.Content;
 
 public class Message {
-	private String messageNumber = ""; // 对应开发文档里的编号
-	private String messageField1 = ""; // 字段1
-	private String messageField2 = ""; // 字段2
-	private String messageField3 = ""; // 字段3
+	private String messageNumber; // 对应开发文档里的编号
+	private String messageField1; // 字段1
+	private String messageField2; // 字段2
+	private String messageField3; // 字段3
 
 	public Message() {
 	}
@@ -64,13 +64,14 @@ public class Message {
 		this.messageField3 = messageField3;
 	}
 
-	public static Message receiveMessage(DataBase dataBase, DataInputStream dataInputStream) throws IOException {
+	public static Message receiveMessage(DataInputStream dataInputStream) throws IOException {
 		// 裸奔版
 		final int MAX_SIZE = 0xffff;
 		byte[] messageByteArray = new byte[MAX_SIZE];
 		dataInputStream.read(messageByteArray);
-		System.out.println(new String(messageByteArray, "utf-8"));
-		return JSON.parseObject(new String(messageByteArray, "utf-8"), Message.class);
+		String messageJSONString = new String(messageByteArray, "utf-8");
+		System.err.println("收到包：" + messageJSONString);
+		return JSON.parseObject(messageJSONString, Message.class);
 
 		// 首部长度校验版
 		// int length = dataInputStream.readInt();
@@ -80,10 +81,11 @@ public class Message {
 		// Message.class);
 	}
 
-	private void sendMessageAsByteArray(DataOutputStream dataOutputStream, Message message) throws IOException {
+	private static void sendMessageAsByteArray(DataOutputStream dataOutputStream, Message message) throws IOException {
 		byte[] messageByteArray;
 		messageByteArray = JSON.toJSONString(message).getBytes("utf-8");
 		dataOutputStream.write(messageByteArray);
+		System.out.println("发送包：" + JSON.toJSONString(message));
 	}
 
 	/**
@@ -140,8 +142,13 @@ public class Message {
 			}
 			message.setMessageField1("1");
 			message.setMessageField2("OK");
-			message.setMessageField3(username);
+
+			User user = dataBase.getUserByUsername(username);
+			user.justInformation();
+
+			message.setMessageField3(JSON.toJSONString(user));
 			sendMessageAsByteArray(dataOutputStream, message);
+
 			System.out.println("用户" + "[" + username + "]" + "已登录");
 			return true;
 		}
@@ -156,15 +163,15 @@ public class Message {
 	 * @throws IOException 流IO错误
 	 */
 	public String message3(DataBase dataBase, DataOutputStream dataOutputStream) throws IOException {
-		// 获得用户名、密码和昵称
-		String username = getMessageField1();
-		String password = getMessageField2();
-		String nickname = getMessageField3();
+		User user = JSON.parseObject(getMessageField1(), User.class);
+
+		String username = user.getUsername();
+		String password = user.getPassword();
 
 		Message message = new Message("3r");
 
-		String pattern1 = "[A-Za-z0-9_]{6,10}";
-		String pattern2 = "[A-Za-z0-9_]{9,16}";
+		String pattern1 = "[A-Za-z0-9_]{3,16}";
+		String pattern2 = "[A-Za-z0-9_]{3,16}";
 
 		if (!Pattern.matches(pattern1, username)) {
 			message.setMessageField1("0");
@@ -182,11 +189,10 @@ public class Message {
 			sendMessageAsByteArray(dataOutputStream, message);
 			return null;
 		} else {
-			User user = new User(username, password, nickname);
 			dataBase.registerUser(user);
 			message.setMessageField1("1");
 			message.setMessageField2("OK");
-			message.setMessageField3(username);
+			message.setMessageField3(JSON.toJSONString(user));
 			sendMessageAsByteArray(dataOutputStream, message);
 			return username;
 		}
@@ -202,20 +208,11 @@ public class Message {
 	 */
 	public void message4(DataBase dataBase, DataOutputStream dataOutputStream, String username) throws IOException {
 		// 先获得所有的好友对象
-		Vector<Friend> friends = dataBase.getFriends(username);
-
-		Vector<Message> messages = new Vector<Message>();
+		Vector<User> friends = dataBase.getFriends(username);
 		Message message;
-
-		for (Friend friend : friends) {
-			message = new Message("4r");
-			message.setMessageField1(friend.getUsername());
-			message.setMessageField2(friend.getNickname());
-			messages.add(message);
-		}
 		message = new Message("4r");
-		message.setMessageField1(String.valueOf(messages.size()));
-		message.setMessageField2(JSONArray.toJSONString(messages));
+		message.setMessageField1(String.valueOf(friends.size()));
+		message.setMessageField2(JSONArray.toJSONString(friends));
 		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
@@ -238,7 +235,8 @@ public class Message {
 		for (Integer sessionId : sessions) {
 			message = new Message("5r");
 			message.setMessageField1(String.valueOf(sessionId));
-			message.setMessageField2(Redis.receive(sessionId));
+			message.setMessageField2(dataBase.getSessionName(sessionId));
+			message.setMessageField3(Redis.receive(sessionId));
 			messages.add(message);
 		}
 		message = new Message("5r");
@@ -257,10 +255,19 @@ public class Message {
 	 */
 	public void message6(DataBase dataBase, DataOutputStream dataOutputStream, String creatorUsername)
 			throws IOException {
-		int sessionId = dataBase.createSession(creatorUsername);
-		Message message = new Message("6r");
-		message.setMessageField1(String.valueOf(sessionId));
-		sendMessageAsByteArray(dataOutputStream, message);
+		String sessionName = getMessageField1();
+		if (sessionName != null && !sessionName.contentEquals("")) {
+			// 创建群聊
+			int sessionId = dataBase.createSession(creatorUsername, sessionName);
+			Message message = new Message("6r");
+			message.setMessageField1(String.valueOf(sessionId));
+			sendMessageAsByteArray(dataOutputStream, message);
+		} else {
+			int sessionId = dataBase.createSession(creatorUsername);
+			Message message = new Message("6r");
+			message.setMessageField1(String.valueOf(sessionId));
+			sendMessageAsByteArray(dataOutputStream, message);
+		}
 	}
 
 	/**
@@ -281,17 +288,10 @@ public class Message {
 
 	public void message8(DataBase dataBase, DataOutputStream dataOutputStream, String username) throws IOException {
 		Vector<Request> requests = dataBase.getRequests(username);
-		Vector<Message> messages = new Vector<Message>(requests.size());
 		Message message;
-		for (Request request : requests) {
-			message = new Message("8r");
-			message.setMessageField1(request.getUsername());
-			message.setMessageField2(request.getCheckMessage());
-			messages.add(message);
-		}
 		message = new Message("8r");
-		message.setMessageField1(String.valueOf(messages.size()));
-		message.setMessageField2(JSONArray.toJSONString(messages));
+		message.setMessageField1(String.valueOf(requests.size()));
+		message.setMessageField2(JSONArray.toJSONString(requests));
 		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
@@ -321,41 +321,44 @@ public class Message {
 		OutputStream outputStream;
 		DataOutputStream dataOutputStream;
 
-		// 转发给会话中除了发送者外所有的用户
+		// 转发给会话中所有的用户
 		for (String username : users) {
-			if (!username.contentEquals(senderUsername)) {
-				socket = dataBase.searchSocketByUsername(username);
-				// 为空表示未上线，直接跳过
-				if (socket == null) {
-					continue;
-				}
-				outputStream = socket.getOutputStream();
-				dataOutputStream = new DataOutputStream(outputStream);
-				sendMessageAsByteArray(dataOutputStream, this);
+			socket = dataBase.searchSocketByUsername(username);
+			// 为空表示未上线，直接跳过
+			if (socket == null) {
+				continue;
 			}
+			outputStream = socket.getOutputStream();
+			dataOutputStream = new DataOutputStream(outputStream);
+			sendMessageAsByteArray(dataOutputStream, this);
 		}
 	}
 
 	/**
-	 * 好友请求：A==>服务端。A向B发出好友申请，先经过服务器。
+	 * 好友或群聊请求：A==>服务端。A向B发出申请，先经过服务器。
 	 * 无论B在线与否，在B的请求列表里添加上A的请求信息，同时，若B在线，则调用message11方法立即向B发送一个11r消息。
 	 * 
-	 * @param dataBase
-	 * @param requestorUsername
-	 * @throws IOException
+	 * @param dataBase          数据库的引用
+	 * @param requestorUsername 发送方的用户名
+	 * @throws IOException 流IO异常
 	 */
 	public void message10(DataBase dataBase, String requestorUsername) throws IOException {
 		String receiverUsername = getMessageField1();
 		String checkMessage = getMessageField2();
+		int sessionId = Integer.parseInt(getMessageField3());
 
-		Request request = new Request(requestorUsername, checkMessage);
+		Date date = new Date();
+
 		// 无论是否在线，先添加至请求列表
-		dataBase.addRequest(receiverUsername, request);
+		receiverUsername = dataBase.addRequest(requestorUsername, receiverUsername, checkMessage, sessionId, date);
+
 		// 判断接收方是否在线
 		Socket receiverSocket = dataBase.searchSocketByUsername(receiverUsername);
+
 		if (receiverSocket != null) {
 			// 接收方在线则直接发送11号消息
-			message11(receiverSocket, requestorUsername, checkMessage);
+			Request request = new Request(sessionId, requestorUsername, checkMessage, date);
+			message11(receiverSocket, request);
 		}
 	}
 
@@ -367,26 +370,28 @@ public class Message {
 	 * @param checkMessage
 	 * @throws IOException
 	 */
-	private void message11(Socket receiverSocket, String requestorUsername, String checkMessage) throws IOException {
+	private void message11(Socket receiverSocket, Request request) throws IOException {
 		Message message = new Message("11r");
-		message.setMessageField1(requestorUsername);
-		message.setMessageField2(checkMessage);
+		message.setMessageField1(JSON.toJSONString(request));
 		DataOutputStream dataOutputStream = new DataOutputStream(receiverSocket.getOutputStream());
 		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
 	/**
-	 * 好友请求：B==>服务端。B确认后将确认信息发送给服务端。 无论同意还是通过，都将从B的请求列表里删除A的请求。
+	 * 好友或群聊请求：B==>服务端。B确认后将确认信息发送给服务端。 无论同意还是通过，都将从B的请求列表里删除A的请求。
 	 * 无论A在线与否，都将在A的结果列表里记录结果，同时，如果A在线，则调用message13方法立即向A发送一个13r消息。
 	 * 
 	 * @param dataBase
 	 * @param receiverUsername
 	 * @throws IOException
+	 * @throws ParseException
 	 */
-	public void message12(DataBase dataBase, String receiverUsername) throws IOException {
+	public void message12(DataBase dataBase, String receiverUsername) throws IOException, ParseException {
 		String requestorUsername = getMessageField1();
-		String result = getMessageField2();
-		dataBase.checkRequest(requestorUsername, receiverUsername, result);
+		int sessionId = Integer.parseInt(getMessageField2());
+		String result = getMessageField3();
+
+		dataBase.checkRequest(requestorUsername, receiverUsername, sessionId, result);
 
 		Socket requestorSocket = dataBase.searchSocketByUsername(requestorUsername);
 		if (requestorSocket != null) {
@@ -412,18 +417,38 @@ public class Message {
 
 	public void message14(DataBase dataBase, DataOutputStream dataOutputStream, String username) throws IOException {
 		Vector<Result> results = dataBase.getResults(username);
-		Vector<Message> messages = new Vector<Message>(results.size());
 		Message message;
-		for (Result result : results) {
-			message = new Message("14r");
-			message.setMessageField1(result.getUsername());
-			message.setMessageField2(result.getResult());
-			messages.add(message);
-		}
 		message = new Message("14r");
-		message.setMessageField1(String.valueOf(messages.size()));
-		message.setMessageField2(JSONArray.toJSONString(messages));
+		message.setMessageField1(String.valueOf(results.size()));
+		message.setMessageField2(JSONArray.toJSONString(results));
 		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
+	public void message15(DataBase dataBase, DataOutputStream dataOutputStream, String activeUsername)
+			throws IOException {
+		String passiveUsername = getMessageField1();
+		dataBase.delFriend(activeUsername, passiveUsername);
+		Socket passiveUserSocket = dataBase.searchSocketByUsername(passiveUsername);
+		if (passiveUserSocket != null) {
+			message16(passiveUserSocket, activeUsername);
+		}
+	}
+
+	private void message16(Socket passiveUserSocket, String activeUsername) throws IOException {
+		Message message = new Message("16r");
+		message.setMessageField1(activeUsername);
+		DataOutputStream dataOutputStream = new DataOutputStream(passiveUserSocket.getOutputStream());
+		sendMessageAsByteArray(dataOutputStream, message);
+	}
+
+	public void message17(DataBase dataBase, String username) {
+		int sessionId = Integer.parseInt(getMessageField1());
+		dataBase.quitSession(username, sessionId);
+	}
+
+	public void message18(DataBase dataBase, String username) {
+		String userJSONString = getMessageField1();
+		User user = JSON.parseObject(userJSONString, User.class);
+		dataBase.updateUserInfo(user);
+	}
 }

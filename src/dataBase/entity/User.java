@@ -6,6 +6,7 @@ public class User {
 	private String username;
 	private String password;
 	private String nickname;
+	private String avatarAddress;
 
 	// 好友列表，这里只用用户名，防止后面改昵称时牵扯太多
 	private Vector<String> friendUsernames = new Vector<String>();
@@ -18,6 +19,12 @@ public class User {
 
 	// 结果列表
 	private Vector<Result> results = new Vector<Result>();
+
+	// 一些没什么用的属性
+	private String phoneNumber;
+	private String email;
+	private String occupation;
+	private String location;
 
 	public User() {
 	}
@@ -50,6 +57,14 @@ public class User {
 
 	public void setNickname(String nickname) {
 		this.nickname = nickname;
+	}
+
+	public String getAvatarAddress() {
+		return avatarAddress;
+	}
+
+	public void setAvatarAddress(String avatarAddress) {
+		this.avatarAddress = avatarAddress;
 	}
 
 	public Vector<String> getFriendUsernames() {
@@ -98,5 +113,45 @@ public class User {
 
 	public void addResults(Result result) {
 		this.results.add(result);
+	}
+
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(String phoneNumber) {
+		this.phoneNumber = phoneNumber;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getOccupation() {
+		return occupation;
+	}
+
+	public void setOccupation(String occupation) {
+		this.occupation = occupation;
+	}
+
+	public String getLocation() {
+		return location;
+	}
+
+	public void setLocation(String location) {
+		this.location = location;
+	}
+
+	public void justInformation() {
+		this.password = null;
+		this.friendUsernames = null;
+		this.sessionIds = null;
+		this.requests = null;
+		this.results = null;
 	}
 }

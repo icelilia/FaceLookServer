@@ -5,18 +5,20 @@ public class Content {
 	String to;
 	String time;
 	String content;
+	String kind;
 
-	public Content(String from, String to, String time, String content) {
+	public Content(String from, String to, String time, String content, String kind) {
 		this.from = from;
 		this.to = to;
 		this.time = time;
 		this.content = content;
+		this.kind = kind;
 	}
 
 	@Override
 	public String toString() {
 		return "Content{" + "from='" + from + '\'' + ", to='" + to + '\'' + ", time='" + time + '\'' + ", content='"
-				+ content + '\'' + '}';
+				+ content + '\'' + ", kind='" + kind + '\'' + '}';
 	}
 
 	public String getFrom() {
@@ -49,5 +51,13 @@ public class Content {
 
 	public void setContent(String content) {
 		this.content = content;
+	}
+
+	public String getKind() {
+		return kind;
+	}
+
+	public void setKind(String kind) {
+		this.kind = kind;
 	}
 }
