@@ -269,7 +269,7 @@ public class DataBase {
 	 * @param inviteeUsername 指定用户的用户名
 	 * @param sessionId       指定会话的sessionId
 	 */
-	synchronized public void joinSession(String inviteeUsername, int sessionId) {
+	synchronized public boolean joinSession(String inviteeUsername, int sessionId) {
 		Document searchSessionDocument = new Document("sessionId", sessionId);
 		Document sessionDocument = MongoDBAPI.findOneDocument(faceLook, SESSION_COLLECTION_NAME, searchSessionDocument);
 		Session session = JSON.parseObject(sessionDocument.toJson(), Session.class);
@@ -279,7 +279,7 @@ public class DataBase {
 		for (String member : members) {
 			// 用户已经在会话中
 			if (member.contentEquals(inviteeUsername)) {
-				return;
+				return false;
 			}
 		}
 
@@ -298,6 +298,7 @@ public class DataBase {
 		inviteeUser.addSession(sessionId);
 		Document newInviteeUserDocument = Document.parse(JSON.toJSONString(inviteeUser));
 		MongoDBAPI.updateOneDocument(faceLook, USER_COLLECTION_NAME, inviteeUserDocument, newInviteeUserDocument);
+		return true;
 
 	}
 

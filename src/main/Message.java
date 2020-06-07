@@ -144,7 +144,7 @@ public class Message {
 			message.setMessageField2("OK");
 
 			User user = dataBase.getUserByUsername(username);
-			user.justInformation();
+			// user.justInformation();
 
 			message.setMessageField3(JSON.toJSONString(user));
 			sendMessageAsByteArray(dataOutputStream, message);
@@ -192,6 +192,7 @@ public class Message {
 			dataBase.registerUser(user);
 			message.setMessageField1("1");
 			message.setMessageField2("OK");
+			// user.justInformation();
 			message.setMessageField3(JSON.toJSONString(user));
 			sendMessageAsByteArray(dataOutputStream, message);
 			return username;
@@ -278,12 +279,18 @@ public class Message {
 	 * @param dataOutputStream 输出流对象引用
 	 * @throws IOException 流IO错误
 	 */
-	public void message7(DataBase dataBase) throws IOException {
+	public void message7(DataBase dataBase, DataOutputStream dataOutputStream) throws IOException {
 		// 目标用户
 		String inviteeUsername = getMessageField1();
 		// 目标会话
 		int sessionId = Integer.parseInt(getMessageField2());
-		dataBase.joinSession(inviteeUsername, sessionId);
+		
+		Message message = new Message("7r");
+		message.setMessageField1("0");
+		if (dataBase.joinSession(inviteeUsername, sessionId)) {
+			message.setMessageField1("1");
+		}
+		Message.sendMessageAsByteArray(dataOutputStream, message);
 	}
 
 	public void message8(DataBase dataBase, DataOutputStream dataOutputStream, String username) throws IOException {

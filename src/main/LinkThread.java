@@ -92,7 +92,7 @@ public class LinkThread extends Thread {
 						break;
 					// 将某用户加入会话
 					case 7:
-						message.message7(dataBase);
+						message.message7(dataBase, dataOutputStream);
 						break;
 					// 获取申请列表
 					case 8:
