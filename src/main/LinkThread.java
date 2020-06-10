@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 
 // 一个LinkThread对应一个用户的连接
 public class LinkThread extends Thread {
@@ -48,21 +49,16 @@ public class LinkThread extends Thread {
 					if (messageNumber == 2) {
 						// 需要记录一下用户名
 						username = message.getMessageField1();
-						if (message.message2(dataBase, dataOutputStream)) {
-							// 添加socket关联
+						if (message.message2(dataOutputStream)) {
+							// 登录成功，维护socketTable并跳出循环
 							dataBase.addSocket(username, socket);
-							// 跳出循环
 							break;
-						} else {
-							username = null;
 						}
+						username = null;
 					}
 					// 3号请求
 					else if (messageNumber == 3) {
-						String registeredUsername = message.message3(dataBase, dataOutputStream);
-						if (registeredUsername != null) {
-							System.out.println("用户" + "[" + registeredUsername + "]" + "已注册");
-						}
+						message.message3(dataOutputStream);
 					}
 					// 其余请求直接跳过
 				}
@@ -74,57 +70,61 @@ public class LinkThread extends Thread {
 					switch (messageNumber) {
 					// 注销
 					case 0:
-						message.message0(dataBase, username);
-						socket = null;
+						message.message0(username);
 						username = null;
+						socket.close();
 						break;
 					// 获取好友列表
 					case 4:
-						message.message4(dataBase, dataOutputStream, username);
+						message.message4(dataOutputStream, username);
 						break;
 					// 获取历史消息列表
 					case 5:
-						message.message5(dataBase, dataOutputStream, username);
+						message.message5(dataOutputStream, username);
 						break;
 					// 创建会话
 					case 6:
-						message.message6(dataBase, dataOutputStream, username);
+						message.message6(dataOutputStream, username);
 						break;
 					// 将某用户加入会话
 					case 7:
-						message.message7(dataBase, dataOutputStream);
+						message.message7(dataOutputStream);
 						break;
 					// 获取申请列表
 					case 8:
-						message.message8(dataBase, dataOutputStream, username);
+						message.message8(dataOutputStream, username);
 						break;
 					// 发送信息
 					case 9:
-						message.message9(dataBase, username);
+						message.message9(username);
 						break;
 					// 好友申请
 					case 10:
-						message.message10(dataBase, username);
+						message.message10(username);
 						break;
 					// 申请结果
 					case 12:
-						message.message12(dataBase, username);
+						message.message12(username);
 						break;
 					// 获取结果列表
 					case 14:
-						message.message14(dataBase, dataOutputStream, username);
+						message.message14(dataOutputStream, username);
 						break;
 					// 删除好友
 					case 15:
-						message.message15(dataBase, dataOutputStream, username);
+						message.message15(dataOutputStream, username);
 						break;
 					// 退出群聊
 					case 17:
-						message.message17(dataBase, username);
+						message.message17(username);
 						break;
 					// 更新个人信息
 					case 18:
-						message.message18(dataBase, username);
+						message.message18(username);
+						break;
+					// 更新群聊信息
+					case 19:
+						message.message19();
 						break;
 					}
 				}
@@ -135,8 +135,12 @@ public class LinkThread extends Thread {
 				if (username != null) {
 					System.out.println("用户" + "[" + username + "]" + "异常登出");
 				}
-				socket = null;
 				username = null;
+				try {
+					socket.close();
+				} catch (IOException e) {
+					System.err.println("异常：" + "异常断开连接时异常");
+				}
 			}
 			// 其他异常的情况回头仔细考虑
 			catch (Exception e) {

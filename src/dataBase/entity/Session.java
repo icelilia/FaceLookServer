@@ -7,11 +7,13 @@ public class Session {
 
 	private int sessionId = sessionNum;
 
-	private String managerUsername;
-	
 	private String sessionName;
 
+	private String managerUsername;
+
 	private Vector<String> sessionMembers = new Vector<String>();
+
+	private String contents;
 
 	public int getSessionId() {
 		return sessionId;
@@ -21,19 +23,12 @@ public class Session {
 		this.sessionId = sessionId;
 	}
 
-	// 获得对话中的用户列表
-	synchronized public Vector<String> getSessionMembers() {
-		return sessionMembers;
+	public String getSessionName() {
+		return sessionName;
 	}
 
-	// 这个方法是为了Fastjson能够反序列化
-	synchronized public void setSessionMembers(Vector<String> sessionMembers) {
-		this.sessionMembers = sessionMembers;
-	}
-
-	// 向对话中添加新的用户
-	synchronized public void addSessionMember(String sessionMemberUsername) {
-		this.sessionMembers.add(sessionMemberUsername);
+	public void setSessionName(String sessionName) {
+		this.sessionName = sessionName;
 	}
 
 	public String getManagerUsername() {
@@ -44,11 +39,24 @@ public class Session {
 		this.managerUsername = managerUsername;
 	}
 
-	public String getSessionName() {
-		return sessionName;
+	synchronized public Vector<String> getSessionMembers() {
+		return sessionMembers;
 	}
 
-	public void setSessionName(String sessionName) {
-		this.sessionName = sessionName;
+	synchronized public void setSessionMembers(Vector<String> sessionMembers) {
+		this.sessionMembers = sessionMembers;
+	}
+
+	// 向对话中添加新的用户
+	synchronized public void addSessionMember(String sessionMemberUsername) {
+		this.sessionMembers.add(sessionMemberUsername);
+	}
+
+	public String getContents() {
+		return contents;
+	}
+
+	public void setContents(String contents) {
+		this.contents = contents;
 	}
 }

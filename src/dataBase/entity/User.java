@@ -7,6 +7,7 @@ public class User {
 	private String password;
 	private String nickname;
 	private String avatarAddress;
+	private int invitee = 1;
 
 	// 好友列表，这里只用用户名，防止后面改昵称时牵扯太多
 	private Vector<String> friendUsernames = new Vector<String>();
@@ -65,6 +66,14 @@ public class User {
 
 	public void setAvatarAddress(String avatarAddress) {
 		this.avatarAddress = avatarAddress;
+	}
+
+	public int getInvitee() {
+		return invitee;
+	}
+
+	public void setInvitee(int invitee) {
+		this.invitee = invitee;
 	}
 
 	public Vector<String> getFriendUsernames() {
@@ -147,6 +156,9 @@ public class User {
 		this.location = location;
 	}
 
+	/**
+	 * 处理User对象的多余信息
+	 */
 	public void justInformation() {
 		this.password = null;
 		this.friendUsernames = null;

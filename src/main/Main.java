@@ -15,6 +15,7 @@ public class Main {
 			LinkThread.server = server;
 			DataBase dataBase = DataBase.getDataBaseInstance();
 			LinkThread.dataBase = dataBase;
+			Message.dataBase = dataBase;
 			// 线程数要和最高并发数相同
 			LinkThread linkThread0 = new LinkThread();
 			LinkThread linkThread1 = new LinkThread();
