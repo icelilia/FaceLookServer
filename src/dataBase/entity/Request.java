@@ -5,6 +5,7 @@ import java.util.Date;
 
 public class Request {
 	private String requestorUsername;
+	private String avatarAddress;
 	private String checkMessage;
 	private String time;
 
@@ -12,10 +13,11 @@ public class Request {
 
 	}
 
-	public Request(String requestorUsername, String checkMessage, Date date) {
+	public Request(String requestorUsername, String avatarAddress, String checkMessage, Date date) {
 		this.requestorUsername = requestorUsername;
+		this.avatarAddress = avatarAddress;
 		this.checkMessage = checkMessage;
-		final SimpleDateFormat dateForm = new SimpleDateFormat("yyyy-MM-dd-hh-mm-ss");
+		final SimpleDateFormat dateForm = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
 		this.setTime(dateForm.format(date));
 	}
 
@@ -25,6 +27,14 @@ public class Request {
 
 	public void setRequestorUsername(String username) {
 		this.requestorUsername = username;
+	}
+
+	public String getAvatarAddress() {
+		return avatarAddress;
+	}
+
+	public void setAvatarAddress(String avatarAddress) {
+		this.avatarAddress = avatarAddress;
 	}
 
 	public String getCheckMessage() {

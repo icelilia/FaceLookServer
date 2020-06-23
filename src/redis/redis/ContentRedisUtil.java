@@ -42,4 +42,11 @@ public class ContentRedisUtil extends MyRedisUtil {
 		jedis.del(key);
 		jedis.close();
 	}
+
+	@Override
+	public void delAll() {
+		Jedis jedis = MyJedisPool.INSTANCE.getJedis();
+		jedis.flushAll();
+		jedis.close();
+	}
 }

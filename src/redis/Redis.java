@@ -24,7 +24,7 @@ public class Redis {
 	}
 
 	public static void send(int sessionId, String from, String to, Date date, String messageText, String kind) {
-		final SimpleDateFormat dateForm = new SimpleDateFormat("yyyy-mm-dd-hh-mm-ss");
+		final SimpleDateFormat dateForm = new SimpleDateFormat("yyyy-mm-dd-HH-mm-ss");
 		Content content = new Content(from, to, dateForm.format(date), messageText, kind);
 		String sessionIdString = String.valueOf(sessionId);
 		sendObject(content, sessionIdString);
@@ -52,7 +52,7 @@ public class Redis {
 		Collections.sort(contents, new Comparator<Content>() {
 			public int compare(Content o1, Content o2) {
 				try {
-					SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd-hh-mm-ss");
+					SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd-HH-mm-ss");
 					Date d1 = dateFormat.parse(o1.getTime());
 					Date d2 = dateFormat.parse(o2.getTime());
 					if (d1.compareTo(d2) > 0)
@@ -87,5 +87,9 @@ public class Redis {
 	public static void delObject(int key) {
 		String k = String.valueOf(key);
 		ContentRedisUtil.INSTANCE.delObject(k);
+	}
+
+	public static void delAll() {
+		ContentRedisUtil.INSTANCE.delAll();
 	}
 }

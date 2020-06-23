@@ -12,4 +12,6 @@ public abstract class MyRedisUtil {
 	public abstract ArrayList<Content> fetch(String key);
 
 	public abstract void delObject(String key);
+
+	public abstract void delAll();
 }

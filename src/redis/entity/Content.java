@@ -1,5 +1,8 @@
 package redis.entity;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 public class Content {
 	String from;
 	String to;
@@ -43,6 +46,11 @@ public class Content {
 
 	public void setTime(String time) {
 		this.time = time;
+	}
+
+	public void setTime(Date date) {
+		final SimpleDateFormat dateForm = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
+		this.time = dateForm.format(date);
 	}
 
 	public String getContent() {

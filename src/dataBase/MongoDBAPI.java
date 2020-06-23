@@ -54,7 +54,7 @@ public class MongoDBAPI {
 		collection.replaceOne(oldDocument, newDocument);
 	}
 
-	// 查询一条数据（这个API我觉得8行，只能用于只有一个或零个结果的查找）
+	// 查询一条数据
 	public static Document findOneDocument(MongoDatabase mongoDatabase, String collectionName, Document document) {
 		MongoCollection<Document> collection = mongoDatabase.getCollection(collectionName);
 		FindIterable<Document> documents = collection.find(document);

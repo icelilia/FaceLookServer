@@ -1,13 +1,13 @@
 package main;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
 import java.net.Socket;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
@@ -72,7 +72,8 @@ public class Message {
 		byte[] messageByteArray = new byte[MAX_SIZE];
 		dataInputStream.read(messageByteArray);
 		String messageJSONString = new String(messageByteArray, "utf-8");
-		System.err.println("收到包：" + messageJSONString);
+		System.out.println("收到包：" + messageJSONString);
+		System.out.println();
 		return JSON.parseObject(messageJSONString, Message.class);
 
 		// 首部长度校验版
@@ -88,6 +89,7 @@ public class Message {
 		messageByteArray = JSON.toJSONString(message).getBytes("utf-8");
 		dataOutputStream.write(messageByteArray);
 		System.out.println("发送包：" + JSON.toJSONString(message));
+		System.out.println();
 	}
 
 	/**
@@ -99,7 +101,8 @@ public class Message {
 		// 维护socketTable
 		dataBase.delSocket(username);
 		// 输出日志
-		System.out.println("User" + "[" + username + "]" + "已登出");
+		System.out.println("用户" + "[" + username + "]" + "已登出");
+		System.out.println();
 	}
 
 	/**
@@ -157,7 +160,7 @@ public class Message {
 		sendMessageAsByteArray(dataOutputStream, message);
 
 		// 输出日志
-		System.out.println("User" + "[" + username + "]" + "已登录");
+		System.out.println("用户" + "[" + username + "]" + "已登录");
 		return true;
 	}
 
@@ -215,7 +218,7 @@ public class Message {
 		message.setMessageField3(JSON.toJSONString(user));
 		sendMessageAsByteArray(dataOutputStream, message);
 
-		System.out.println("User" + "[" + username + "]" + "已注册");
+		System.out.println("用户" + "[" + username + "]" + "已注册");
 	}
 
 	/**
@@ -351,20 +354,45 @@ public class Message {
 		setMessageNumber("9r");
 		// 会话编号
 		int sessionId = Integer.parseInt(getMessageField1());
-		//
+
 		String contentString = getMessageField2();
 		Content content = JSON.parseObject(contentString, Content.class);
+		Date date = new Date();
+		content.setTime(date);
 
 		// 储存在redis中
 		Redis.send(sessionId, content);
 
+		Socket socket;
+
+		Session session = dataBase.getSessionBySessionId(sessionId);
+		
+		
+		
+		// 私人Session的单独处理
+		if (session.getManagerUsername() == null) {
+			Vector<String> sessionMembers = session.getSessionMembers();
+			String receiverUsername = null;
+			for (String sessionMember : sessionMembers) {
+				if (!sessionMember.contentEquals(senderUsername)) {
+					receiverUsername = sessionMember;
+					break;
+				}
+			}
+
+			socket = dataBase.searchSocketByUsername(senderUsername);
+			this.setMessageField3(receiverUsername);
+			sendMessageAsByteArray(new DataOutputStream(socket.getOutputStream()), this);
+
+			socket = dataBase.searchSocketByUsername(receiverUsername);
+			this.setMessageField3(senderUsername);
+			sendMessageAsByteArray(new DataOutputStream(socket.getOutputStream()), this);
+
+			return;
+		}
+
 		// 获得该会话中的所有User
 		Vector<String> users = dataBase.getMembers(sessionId);
-
-		Socket socket;
-		OutputStream outputStream;
-		DataOutputStream dataOutputStream;
-
 		// 转发给会话中所有的User
 		for (String username : users) {
 			socket = dataBase.searchSocketByUsername(username);
@@ -372,9 +400,7 @@ public class Message {
 			if (socket == null) {
 				continue;
 			}
-			outputStream = socket.getOutputStream();
-			dataOutputStream = new DataOutputStream(outputStream);
-			sendMessageAsByteArray(dataOutputStream, this);
+			sendMessageAsByteArray(new DataOutputStream(socket.getOutputStream()), this);
 		}
 	}
 
@@ -393,14 +419,19 @@ public class Message {
 		Date date = new Date();
 
 		// 无论是否在线，先添加至请求列表
-		dataBase.addRequest(requestorUsername, receiverUsername, checkMessage, date);
+		Request request = dataBase.addRequest(requestorUsername, receiverUsername, checkMessage, date);
+
+		// 判断是否已经在申请列表中
+		if (request == null) {
+			return;
+		}
 
 		// 判断接收方是否在线
 		Socket receiverSocket = dataBase.searchSocketByUsername(receiverUsername);
 
 		if (receiverSocket != null) {
 			// 接收方在线则直接发送11号消息
-			message11(receiverSocket, new Request(requestorUsername, checkMessage, date));
+			message11(receiverSocket, request);
 		}
 	}
 
@@ -430,15 +461,19 @@ public class Message {
 	 */
 	public void message12(String receiverUsername) throws IOException, ParseException {
 		String requestorUsername = getMessageField1();
-		String result = getMessageField2();
+		String resultString = getMessageField2();
 
 		Date date = new Date();
 
-		dataBase.checkRequest(requestorUsername, receiverUsername, result, date);
+		Result result = dataBase.checkRequest(requestorUsername, receiverUsername, resultString, date);
+
+		if (result == null) {
+			return;
+		}
 
 		Socket requestorSocket = dataBase.searchSocketByUsername(requestorUsername);
 		if (requestorSocket != null) {
-			message13(requestorSocket, new Result(receiverUsername, result, date));
+			message13(requestorSocket, result);
 		}
 	}
 
@@ -527,11 +562,17 @@ public class Message {
 	 * 
 	 * @param dataBase
 	 * @param username
+	 * @throws IOException
 	 */
-	public void message18(String username) {
+	public void message18(DataOutputStream dataOutputStream, String username) throws IOException {
 		String userJSONString = getMessageField1();
 		User user = JSON.parseObject(userJSONString, User.class);
-		dataBase.updateUserInfo(user);
+
+		user = dataBase.updateUserInfo(user, username);
+
+		Message message = new Message("18r");
+		message.setMessageField1(JSON.toJSONString(user));
+		sendMessageAsByteArray(dataOutputStream, message);
 	}
 
 	public void message19() throws IOException {
@@ -546,6 +587,71 @@ public class Message {
 		DataOutputStream dataOutputStream;
 
 		Message message = new Message("19r");
+		message.setMessageField1(JSON.toJSONString(session));
+
+		// 向该Session中的所有User返回发送更新后的Session对象
+		for (String sessionMember : sessionMembers) {
+			socket = dataBase.searchSocketByUsername(sessionMember);
+			// 为空表示未上线，直接跳过
+			if (socket == null) {
+				continue;
+			}
+			dataOutputStream = new DataOutputStream(socket.getOutputStream());
+			sendMessageAsByteArray(dataOutputStream, message);
+		}
+	}
+
+	public void message20(DataOutputStream dataOutputStream, String username) throws IOException {
+		String nickname = getMessageField1();
+		Vector<User> users = dataBase.fuzzySearchByNickname(nickname);
+
+		Vector<String> friendUsernames = dataBase.getFriendUsernames(username);
+		Iterator<User> iterator = users.iterator();
+		// 删除自己和已成为好友的User
+		while (iterator.hasNext()) {
+			User tempUser = iterator.next();
+			if (friendUsernames.contains(tempUser.getUsername()) || username.contentEquals(tempUser.getUsername())) {
+				iterator.remove();
+				continue;
+			}
+			tempUser.justInformation();
+		}
+
+		int length = users.size();
+		Message message = new Message("20r");
+		message.setMessageField1(String.valueOf(length));
+		message.setMessageField2(JSON.toJSONString(users));
+		sendMessageAsByteArray(dataOutputStream, message);
+	}
+
+	public void message21(DataOutputStream dataOutputStream, String username) throws IOException {
+		User user = dataBase.searchByUsername(getMessageField1());
+		Message message = new Message("21r");
+		message.setMessageField1("0");
+		if (user != null) {
+
+			Vector<String> friendUsernames = dataBase.getFriendUsernames(username);
+			if (!friendUsernames.contains(user.getUsername()) && !username.contentEquals(user.getUsername())) {
+				user.justInformation();
+				message.setMessageField1("1");
+			}
+		}
+		message.setMessageField2(JSON.toJSONString(user));
+		sendMessageAsByteArray(dataOutputStream, message);
+	}
+
+	public void message22() throws IOException {
+		int sessionId = Integer.parseInt(getMessageField1());
+		String username = getMessageField2();
+
+		Session session = dataBase.quitSession(username, sessionId);
+
+		Vector<String> sessionMembers = session.getSessionMembers();
+
+		Socket socket;
+		DataOutputStream dataOutputStream;
+
+		Message message = new Message("22r");
 		message.setMessageField1(JSON.toJSONString(session));
 
 		// 向该Session中的所有User返回发送更新后的Session对象

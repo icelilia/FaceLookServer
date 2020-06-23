@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.util.Scanner;
 
 import dataBase.DataBase;
+import redis.Redis;
 
 public class Main {
 
@@ -38,16 +39,19 @@ public class Main {
 			linkThread8.start();
 			linkThread9.start();
 
-			// 回头可以加点服务器端的命令，像"stop"之类的
+			// 服务器端的命令
 			@SuppressWarnings("resource")
 			Scanner scanner = new Scanner(System.in);
 			String order;
 
 			while (true) {
 				order = scanner.nextLine();
-				if (order.contentEquals("show users")) {
+				if (order.contentEquals("show online users")) {
 					System.out.println(dataBase.showSocket());
 					continue;
+				}
+				if (order.contentEquals("delete all contents")) {
+					Redis.delAll();
 				}
 				if (order.contentEquals("stop")) {
 					System.exit(0);

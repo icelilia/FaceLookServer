@@ -2,7 +2,6 @@ package main;
 
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 
 import dataBase.DataBase;
 import main.Message;
@@ -120,31 +119,38 @@ public class LinkThread extends Thread {
 						break;
 					// 更新个人信息
 					case 18:
-						message.message18(username);
+						message.message18(dataOutputStream, username);
 						break;
 					// 更新群聊信息
 					case 19:
 						message.message19();
 						break;
+					case 20:
+						message.message20(dataOutputStream, username);
+						break;
+					case 21:
+						message.message21(dataOutputStream, username);
+						break;
+					case 22:
+						message.message22();
+						break;
 					}
 				}
 			}
-			// 连接异常断开时，维护socketTable
-			catch (SocketException socketException) {
+			// 所有异常，都直接断开连接
+			catch (Exception exception) {
 				dataBase.delSocket(username);
 				if (username != null) {
 					System.out.println("用户" + "[" + username + "]" + "异常登出");
+					System.out.println();
 				}
 				username = null;
 				try {
 					socket.close();
-				} catch (IOException e) {
-					System.err.println("异常：" + "异常断开连接时异常");
+				} catch (IOException ioException) {
+					System.out.println("异常：" + "异常断开连接时异常");
+					System.out.println();
 				}
-			}
-			// 其他异常的情况回头仔细考虑
-			catch (Exception e) {
-				System.err.println("异常：" + e);
 			}
 		}
 
