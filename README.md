@@ -1,2 +1,2 @@
-# FaceLook
-Server of FaceLook
+# LightChat
+Server of LightChat
